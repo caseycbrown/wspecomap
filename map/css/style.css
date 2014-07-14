@@ -1,0 +1,32 @@
+﻿html, body {
+        height: 100%;
+        margin: 0px;
+        padding: 0px
+}
+      
+#map-page .ui-panel-wrapper {
+  width: 100%;
+  height: 100%;
+  padding: 0px; 
+}
+
+#map-page .ui-header {
+  height: 40px;
+  opacity: .3;
+}
+
+/*this is the map canvas*/
+
+#map-page .ui-content {
+  position: absolute;
+  top: 40px;
+  bottom: 0px;
+  width: 100%;
+  padding: 0px;
+}
+
+#map-canvas {
+  height: 100%;
+  width: 100%;
+}
+
