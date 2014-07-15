@@ -82,7 +82,8 @@ class JsonData {
   public function echoSelf() {
       
     if ($this->error_ !== null) {
-      header("HTTP/1.1 500 " . $this->error_);
+      //header("HTTP/1.1 500 " . $this->error_);
+      header("HTTP/1.1 500 " . "Unable to complete request");
       $this->set("error", $this->error_);
     }
         

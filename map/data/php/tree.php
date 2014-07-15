@@ -22,7 +22,7 @@ class TreeManager {
   /* 
     Adds a tree to database and returns jsondata object
   */
-  public function add($tree){    
+  public function add(){    
     $jd = new JsonData();
     $jd->set("error", "Add tree functionality not yet implemented");
     return $jd;
@@ -102,7 +102,8 @@ class TreeManager {
 class Tree {
 
   private $dbHelper_;
-  //the following may be undefined if they are never set
+
+  //following are attributes
   private $id_;
   private $taxonId_;
   private $dbh_;

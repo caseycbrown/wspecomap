@@ -1,0 +1,5 @@
+# don't want users to see php
+<Files *>
+  order allow,deny
+  deny from all
+</Files>

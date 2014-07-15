@@ -34,7 +34,7 @@ try {
       $manager = new TreeManager($dbh, $urlHelper);
       break;
     case "taxon":
-      $manager = new Taxon($dbh, $urlHelper);
+      $manager = new TaxonManager($dbh, $urlHelper);
       break;
     case "user":
       $manager = new User($dbh, $urlHelper);

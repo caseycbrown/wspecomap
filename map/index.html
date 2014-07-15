@@ -38,6 +38,7 @@
 
         wspApp.map = new wsp.Map();
         wspApp.map.requestTrees();
+        wspApp.map.requestTaxa();
       });
          
     </script>
@@ -64,7 +65,9 @@
 
       <div data-role="panel" data-position-fixed="true" data-display="overlay" data-theme="b" id="tree-info-panel">
           <h3 class="common">Common Name</h3>
-          <h4 class="scientific">Scientific Name</h4>
+          <a class="moreinfo" href="https://www.google.com" target="_blank">
+            <h4 class="scientific">Scientific Name</h4>
+          </a>
           <h4 class="diameter">dbh</h4>
           <a href="#" data-rel="close" class="ui-btn ui-corner-all ui-btn-b ui-mini">
             Close
