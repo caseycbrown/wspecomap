@@ -25,6 +25,7 @@
     
     <script src="https://maps.googleapis.com/maps/api/js?v=3"></script>
     <script src="js/wspmap.js" type="text/javascript"></script>
+    <script src="js/panel.js" type="text/javascript"></script>
 
     
     <link rel="stylesheet" href="css/style.css"/>
@@ -46,8 +47,6 @@
   <body>
         
     <div data-url="map-page" data-role="page" id="map-page" data-title="WSP">
-
-    
     
       <div data-role="header" data-position="fixed">
           <h1>WSP Eco Map</h1>
@@ -63,17 +62,45 @@
       
       </div><!-- /content -->
 
-      <div data-role="panel" data-position-fixed="true" data-display="overlay" data-theme="b" id="tree-info-panel">
-          <h3 class="common">Common Name</h3>
-          <a class="moreinfo" href="https://www.google.com" target="_blank">
-            <h4 class="scientific">Scientific Name</h4>
+      <div id="tree-info-panel" data-role="panel" data-position-fixed="true" data-display="overlay"
+        data-theme="b" data-animate="false">
+        <h3 class="panel-heading">About this tree</h3>
+        <div class="panel-detail">
+          <label class="panel-descriptor">Common name</label>
+          <div class="common panel-data">c. name</div>
+          
+          <label class="panel-descriptor">Scientific name</label>
+          <a id="tree-data-link" href="https://www.google.com" target="_blank">
+            <label class="scientific panel-data">sci name</label>
           </a>
-          <h4 class="diameter">dbh</h4>
+          
+          <label class="panel-descriptor">Diameter (dbh)</label>
+          <div class="diameter panel-data">dbh</div>
           <a href="#" data-rel="close" class="ui-btn ui-corner-all ui-btn-b ui-mini">
             Close
           </a>
+          <input type="button" class="ui-btn ui-corner-all ui-btn-b ui-mini"
+            data-icon="star" data-iconpos="notext" value="Button" />
+          
+        </div>
           
       </div><!-- /panel -->
+      <div id="tree-edit-panel" data-role="panel" data-position-fixed="true" data-display="overlay"
+        data-theme="b" data-animate="false">          
+          <label class="panel-descriptor">Choose taxon</label>
+          
+          <select class="taxon panel-data" data-native-menu="false">
+          </select>     
+          
+          
+          <label class="panel-descriptor">dbh (inches)</label>
+          <input type="text" class="diameter panel-data">
+          <button type="button"
+            class="update ui-btn ui-corner-all ui-btn-a ui-mini">Update</button>
+          <a href="#tree-info-panel" data-rel="close"
+            class="ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</a>
+      </div><!-- /panel -->
+
       <div data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="a" id="add-form">
           <form class="userform">
               <h2>Login</h2>

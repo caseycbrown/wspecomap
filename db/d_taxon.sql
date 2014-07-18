@@ -11,7 +11,7 @@ insert into
     common
   )
 values
-  (1, 'unknown', 'unknown','unknown'),
+  (1, null, null, null),
   (2, 'Quercus', 'alba','white oak'),
   (3, 'Acer', 'rubrum','red maple')
 ;

@@ -16,7 +16,6 @@
 }
 
 /*this is the map canvas*/
-
 #map-page .ui-content {
   position: absolute;
   top: 40px;
@@ -30,3 +29,26 @@
   width: 100%;
 }
 
+.tree-detail {
+  padding-left: 9px;
+}
+
+/*the headings for */
+label.panel-descriptor {
+  font-size: smaller;
+  color: #767676;
+  font-style: italic;
+  margin-bottom: 1px;
+}
+
+/*specifically id the anchor that is a data link so that the style will
+override jqm's default coloring style*/
+.panel-detail, #tree-data-link {
+  padding: 0px;
+  color: #a8a6a6;
+}
+.panel-heading {
+  padding: 0px;
+  margin-bottom: 2px;
+  color: #a8a6a6;
+}
