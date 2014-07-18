@@ -6,8 +6,7 @@
 wsp.Map = function () {
 
   //following are the private variables for Map
-  var that = this,
-    dataUrl = "data/";
+  this.dataUrl = "data/";
         
   function selfInit() {
     console.log("wsp.Map init");
@@ -24,12 +23,11 @@ wsp.Map = function () {
     console.log("requesting trees");
         
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
-    var jqxhr = $.ajax({url: dataUrl,
+    var jqxhr = $.ajax({url: this.dataUrl,
                         data: {verb: "get", noun: "tree", dbhmin: 30},
                         dataType: "json",
-                        context: that})    
+                        context: this})    
         .done(function(data){
-          console.log("trees received, my friend " + this.argh);
           var i = 0;
           var marker  = null;
           var tree = null;
@@ -64,12 +62,11 @@ wsp.Map = function () {
   this.requestTaxa = function () {
     console.log("requesting taxa");
         
-    var jqxhr = $.ajax({url: dataUrl,
+    var jqxhr = $.ajax({url: this.dataUrl,
                         data: {verb: "get", noun: "taxon"},
                         dataType: "json",
-                        context: that})    
+                        context: this})    
         .done(function(data){
-          console.log("taxa received, my friend " + this.argh);
           var i = 0;
           for (i = 0; i < data.taxa.length; i++) {
             this.taxa[data.taxa[i].id] = new wsp.Taxon({dbTaxon: data.taxa[i]});

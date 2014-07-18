@@ -132,8 +132,7 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
       }
     }
   }
- 
-  
+
   this.domPanel.find(".diameter").val(tree.dbh);
   //need to re-draw so that jqm can update selector
   
@@ -148,5 +147,22 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
 wsp.EditTreePanel.prototype.update = function() {
   console.log("taxon:" + this.domPanel.find("select.taxon").text());
   console.log("dbh:" + this.domPanel.find(".diameter").val());
+  
+  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+                      data: {verb: "update", noun: "tree"},
+                      dataType: "json",
+                      context: this})    
+    .done(function(data){
+      console.log("update received:");
+      console.log(data);
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+      if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
+        console.log("Error: " + jqXHR.responseJSON.error);
+      } else {
+        console.log("Error: " + errorThrown);
+      }
+        
+    });
   
 };

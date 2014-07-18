@@ -19,6 +19,22 @@ class TreeManager {
   public function __destruct() {
   }
     
+    
+  
+  /*
+    Returns a tree that has been created from request
+  */
+  private function createTreeFromRequest() {
+    $attr = array();
+    $attr["id"] = $this->urlHelper_->getParameter("tree_id");
+    $attr["taxon_id"] = $this->urlHelper_->getParameter("taxon_id");
+    $attr["dbh"] = $this->urlHelper_->getParameter("dbh");
+    $attr["lat"] = $this->urlHelper_->getParameter("lat");
+    $attr["lng"] = $this->urlHelper_->getParameter("lng");
+    
+    return new Tree($this->dbh_, $attr);
+  }
+  
   /* 
     Adds a tree to database and returns jsondata object
   */
@@ -76,11 +92,36 @@ class TreeManager {
     return $jd;
   }
   /* 
-    Updates a tree in database and returns jsondata object
+    Updates a tree in database returns jsondata object
   */
   public function update(){    
     $jd = new JsonData();
-    $jd->set("error", "Update tree functionality not yet implemented");
+    
+    //TODO: verify that user has permissions to do this
+
+
+/*    
+    $id = $this->urlHelper_->getParameter("tree_id", true);
+    $taxonId = $this->urlHelper_->getParameter("taxon_id", true);
+    $dbh = $this->urlHelper_->getParameter("dbh", true);
+    $lat = $this->urlHelper_->getParameter("lat", true);
+    $lng = $this->urlHelper_->getParameter("lng", true);
+      
+    $s = "call update_tree($id, $taxonId, $dbh, $lat, $lng)";
+    $r = $this->dbh_->executeQuery($s);
+
+    if ($r["error"]) {
+      $jd->set("error", "Error attempting to update tree" . "..." . $r["error"]);
+    } else {      
+
+      $jd->set("success", "need more robust php side");
+      $jd->set("s", $s);
+    }
+*/  
+
+    $t = $this->createTreeFromRequest();
+    $jd->set("tree", $t->getAttributes());
+    
     return $jd;
   }
   /* 
