@@ -2,50 +2,6 @@
 
 include_once "./config/config.php"; //db access info.  path is relative to root
 
-/**
-  Simple object that handles repetitive URL-related tasks
- */
-class URLHelper {
-
-  private $parameters_;
-  private $dbHelper_;
-  
-  public function __construct($dbh) {
-    //grab parameters - either GET or POST.  could in theory be from both,
-    //though that would likely be poor design    
-    
-    //if any have a param with same name, the last will overwrite previous
-    $this->parameters_ = array_merge($_GET, $_POST, $_FILES);    
-    $this->dbHelper_ = $dbh;
-  }
-  
-  public function __destruct() {
-  }
-    
-  /* 
-    Returns parameter if it exists; null otherwise.
-    Set nullStringReplace to true if you wish to replace null
-    values with the string 'null'.  This is generally done because when
-    values are passed to stored procedures, the null value will mess up the
-    parameters to the stored procedure
-  */
-  public function getParameter($paramName, $nullStringReplace = false){
-    $toReturn = null;
-    //check both post and get params
-    if(isset($this->parameters_[$paramName])) {
-      $toReturn = $this->dbHelper_->escapeString($this->parameters_[$paramName]);      
-    }
-    
-    if (($toReturn === null) && ($nullStringReplace)) {
-      $toReturn = "null";
-    }
-    
-    return $toReturn;
-  }
-  
-    
-} //end URLHelper class
-
 
 /**
    object that represents the return information to user
@@ -53,11 +9,9 @@ class URLHelper {
 class JsonData {
 
   private $data_;
-  public $error_; //public for convenience
   
   public function __construct() {
     
-    $this->error_ = null;
     $this->data_ = array();
     
   }
@@ -81,10 +35,8 @@ class JsonData {
   /*Sets headers, content type, and echos data*/
   public function echoSelf() {
       
-    if ($this->error_ !== null) {
-      //header("HTTP/1.1 500 " . $this->error_);
+    if ($this->get("error") !== null) {
       header("HTTP/1.1 500 " . "Unable to complete request");
-      $this->set("error", $this->error_);
     }
         
     header("Content-type: application/json"); 
@@ -97,15 +49,23 @@ class JsonData {
 
 
 /**
-  Simple object that handles interactions with database
+  DataHelper handles interactions with database - just provides some
+  simple functionality so that rest of code doesn't need to worry about it
+  
+  Also can read URL get request data, which is a little bit of a stretch to have
+  included in this class...but because escaping strings requires a db connection
+  I'm including it here
  */
-class DBHelper {
+class DataHelper {
   
   private $connection_;
   private $dbc_;
+  private $parameters_;
   
   public function __construct() {
     $this->dbc_ = new Config();
+    
+    $this->parameters_ = array_merge($_GET, $_POST, $_FILES);
     
     $ci = $this->dbc_->defaultConnection;
 
@@ -178,6 +138,28 @@ class DBHelper {
     } else {
       $toReturn["error"] = "No next result";
     }
+    return $toReturn;
+  }
+
+  
+  /* 
+    Returns parameter if it exists; null otherwise.
+    Set nullStringReplace to true if you wish to replace null
+    values with the string 'null'.  This is generally done because when
+    values are passed to stored procedures, the null value will mess up the
+    parameters to the stored procedure
+  */
+  public function getParameter($paramName, $nullStringReplace = false){
+    $toReturn = null;
+    //check both post and get params
+    if(isset($this->parameters_[$paramName])) {
+      $toReturn = $this->escapeString($this->parameters_[$paramName]);      
+    }
+    
+    if (($toReturn === null) && ($nullStringReplace)) {
+      $toReturn = "null";
+    }
+    
     return $toReturn;
   }
 

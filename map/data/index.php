@@ -25,46 +25,29 @@ $jd = new JsonData();
 
 try {
 
-  $dbh = new DBHelper();
-  $urlHelper = new URLHelper($dbh);
+  $dh = new DataHelper();
   $manager = null; //will be tree, taxon, or user
 
-  switch ($urlHelper->getParameter("noun")) {
+  switch ($dh->getParameter("noun")) {
     case "tree":
-      $manager = new TreeManager($dbh, $urlHelper);
+      $manager = new TreeManager();
       break;
     case "taxon":
-      $manager = new TaxonManager($dbh, $urlHelper);
+      $manager = new TaxonManager();
       break;
     case "user":
-      $manager = new User($dbh, $urlHelper);
+      $manager = new User();
       break;
     default:
-      $jd->error_ = "Invalid noun given";
+      throw new Exception("Invalid noun given");
   }
+  
+  $jd = $manager->processRequest($dh);
 
-  if (!$jd->error_) {
-    switch ($urlHelper->getParameter("verb")) {
-      case "get":
-        $jd = $manager->get();
-        break;
-      case "update":
-        $jd = $manager->update();
-        break;
-      case "add":
-        $jd = $manager->add();
-        break;
-      case "delete":
-        $jd = $manager->delete();
-        break;
-      default:
-        $jd->error_ = "Invalid verb given";
-    }
-  }
-    
+  
 
 } catch (Exception $e) {
-  $jd->error_ = $e->getMessage();
+  $jd->set("error", $e->getMessage());
 }
 
 
