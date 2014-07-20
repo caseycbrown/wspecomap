@@ -52,3 +52,8 @@ override jqm's default coloring style*/
   margin-bottom: 2px;
   color: #a8a6a6;
 }
+
+/*tree edit button*/
+#tree-info-panel .edit {
+  margin: 0 auto;
+}

@@ -1,6 +1,5 @@
 <?php
 
-include_once "./config/config.php"; //db access info.  path is relative to root
 include_once "./php/utility.php";
 
 /**
@@ -13,12 +12,11 @@ class TreeManager {
   /*
     Determines what to do based on request parameters
   */
-   
   public function processRequest($dh) {
     $tree = $this->createTreeFromRequest($dh);
     $jd = new JsonData();
     switch ($dh->getParameter("verb")) {
-      case "find":
+      case "get":
         $jd = $this->find($dh);
         break;
       case "update":
@@ -56,7 +54,7 @@ class TreeManager {
   /* 
     Returns jsondata object containing zero or more trees
   */
-  public function find($dh){    
+  private function find($dh){    
     $jd = new JsonData();
     $trees = array();
     
@@ -128,7 +126,15 @@ class Tree {
     
     $this->setAttributes($attrs);
   }
-  
+
+  /* 
+    Adds a tree to database and returns jsondata object
+  */
+  public function add(){    
+    $jd = new JsonData();
+    $jd->set("error", "Add tree functionality not yet implemented");
+    return $jd;
+  }  
   
   /*
     updates self in database
@@ -146,13 +152,9 @@ class Tree {
     $s = "call update_tree($id, $tid, $dbh, $lat, $lng)";
     $r = $dh->executeQuery($s);
     
-    $jd->set("sql", $s);
-
     if ($r["error"]) {
       $jd->set("error", "Error attempting to update tree" . "..." . $r["error"]);
     } else {      
-
-      $jd->set("success", "need more robust php side");
       $jd->set("tree", $this->getAttributes());
     }
     
@@ -166,14 +168,6 @@ class Tree {
   public function delete(){    
     $jd = new JsonData();
     $jd->set("error", "Delete tree functionality not yet implemented");
-    return $jd;
-  }
-  /* 
-    Adds a tree to database and returns jsondata object
-  */
-  public function add(){    
-    $jd = new JsonData();
-    $jd->set("error", "Add tree functionality not yet implemented");
     return $jd;
   }
     

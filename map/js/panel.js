@@ -24,7 +24,6 @@ wsp.Panel = function (name) {
   a tree or a taxon or a user
 */
 wsp.Panel.prototype.open = function(opts) {
-  console.log("Directive to call open");
   this.openOpts = opts || {};
   this.domPanel.panel("open");
 };
@@ -33,7 +32,7 @@ wsp.Panel.prototype.open = function(opts) {
   Closes panel
 */
 wsp.Panel.prototype.close = function() {
-  console.log("closing up shop");
+  console.log("closing up shop..." + this.blah);
   this.domPanel.panel("close");
 };
 
@@ -47,11 +46,18 @@ wsp.Panel.prototype.onOpen = function(event, ui) {
 
 /*
   Triggered when the process (and animation) of closing a panel is finished 
-  subclass should override
+  subclass could override
 */
 wsp.Panel.prototype.onClose = function(event, ui) {
+  console.log("onClose called..." + this.blah);
   //override for functionality
-  console.log("onClose...");
+  if (this.openOpts.prevPanel) {
+    var prevPanel = this.openOpts.prevPanel;    
+    this.openOpts.prevPanel = null; //don't want it to be opened again
+    
+    console.log("in onclose, trying to open " + prevPanel.blah);
+    prevPanel.open(this.openOpts);
+  }
 };
 
 /*
@@ -69,7 +75,12 @@ wsp.DisplayTreePanel = function(name) {
   
   //grab the edit button
   this.tmpEdit = this.domPanel.find("input").click($.proxy(function(){
-    wspApp.map.openPanel("edit-tree", this.openOpts.base);
+    wspApp.map.panels.editTree.open({base: this.openOpts.base, prevPanel: this});
+    
+    //wspApp.map.openPanel("edit-tree", {base: this.openOpts.base,
+    //  prevPanel: name});
+      
+      
     }, this));
   
 };
@@ -80,8 +91,6 @@ wsp.DisplayTreePanel.prototype.constructor = wsp.DisplayTreePanel;
 
 wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   var tree = this.openOpts.base;
-  
-  console.log("DisplayTreePanel onBeforeOpen"  + tree.title);
   
   var taxon = wspApp.map.taxa[tree.taxonId] || {};
   var dbhUnit = (tree.dbh === 1) ? " inch" : " inches";
@@ -99,6 +108,7 @@ wsp.EditTreePanel = function(name) {
   
   //tell what to do when click on update
   this.domPanel.find("button.update").click($.proxy(this.update, this));
+  this.domPanel.find("button.cancel").click($.proxy(this.close, this));
   
 };
 
@@ -134,10 +144,10 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
   }
 
   this.domPanel.find(".diameter").val(tree.dbh);
+  this.domPanel.find(".error").text(null); //clear any error msg from previous time
+
+  
   //need to re-draw so that jqm can update selector
-  
-  
-  //sel.selectmenu();
   sel.selectmenu().selectmenu( "refresh", true);
 };
 
@@ -145,23 +155,42 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
   Attempts to update tree to current state
 */
 wsp.EditTreePanel.prototype.update = function() {
-  console.log("taxon:" + this.domPanel.find("select.taxon").text());
-  console.log("dbh:" + this.domPanel.find(".diameter").val());
+
+  var tree = this.openOpts.base;
+  
+  //update tree
+  var newTaxonId = parseInt(this.domPanel.find("select.taxon option:selected").val());
+  var newDbh = parseInt(this.domPanel.find(".diameter").val());
   
   var jqxhr = $.ajax({url: wspApp.map.dataUrl,
-                      data: {verb: "update", noun: "tree"},
+                      data: {verb: "update", noun: "tree",
+                      treeid: tree.id,
+                      taxonid: newTaxonId,
+                      dbh: newDbh,
+                      lat: tree.position.lat,
+                      lng: tree.position.lng},
                       dataType: "json",
                       context: this})    
     .done(function(data){
-      console.log("update received:");
-      console.log(data);
+    
+      //update tree that other panel uses...if this is done before sending the
+      //request, would need to undo it on failure.
+      tree.taxonId = newTaxonId;
+      tree.dbh = newDbh;
+    
+      this.close();
     })
     .fail(function(jqXHR, textStatus, errorThrown) {
+      var error = "Error: ";
       if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
-        console.log("Error: " + jqXHR.responseJSON.error);
+        //console.log("Error: " + jqXHR.responseJSON.error);
+        error += jqXHR.responseJSON.error;
       } else {
-        console.log("Error: " + errorThrown);
+        //console.log("Error: " + errorThrown);
+        error += errorThrown;
       }
+      
+      this.domPanel.find(".error").text(error);
         
     });
   

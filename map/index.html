@@ -64,6 +64,7 @@
 
       <div id="tree-info-panel" data-role="panel" data-position-fixed="true" data-display="overlay"
         data-theme="b" data-animate="false">
+
         <h3 class="panel-heading">About this tree</h3>
         <div class="panel-detail">
           <label class="panel-descriptor">Common name</label>
@@ -76,11 +77,14 @@
           
           <label class="panel-descriptor">Diameter (dbh)</label>
           <div class="diameter panel-data">dbh</div>
+          
+          <input type="button" class="edit ui-btn ui-corner-all ui-btn-b ui-mini"
+            data-icon="edit" data-iconpos="notext" />
+
+          
           <a href="#" data-rel="close" class="ui-btn ui-corner-all ui-btn-b ui-mini">
             Close
           </a>
-          <input type="button" class="ui-btn ui-corner-all ui-btn-b ui-mini"
-            data-icon="star" data-iconpos="notext" value="Button" />
           
         </div>
           
@@ -95,10 +99,13 @@
           
           <label class="panel-descriptor">dbh (inches)</label>
           <input type="text" class="diameter panel-data">
+          
+          <label class="error"></label>
+          
           <button type="button"
             class="update ui-btn ui-corner-all ui-btn-a ui-mini">Update</button>
-          <a href="#tree-info-panel" data-rel="close"
-            class="ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</a>
+          <button type="button"
+            class="cancel ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
       </div><!-- /panel -->
 
       <div data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="a" id="add-form">
