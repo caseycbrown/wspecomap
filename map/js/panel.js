@@ -68,6 +68,24 @@ wsp.Panel.prototype.onBeforeOpen = function (event, ui) {
   //override to provide functionality
 };
 
+/*
+  Call this method when there is an error from ajax request.
+  Makes the assumption that there is a .error label on the panel
+*/
+wsp.Panel.prototype.onAjaxFail = function (jqXHR, textStatus, errorThrown) {
+  console.log("onAjaxFail " + this.blah);
+  console.log(this);
+  var error = "Error: ";
+  if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
+    error += jqXHR.responseJSON.error;
+  } else {
+    error += errorThrown;
+  }
+  
+  this.domPanel.find(".error").text(error);  
+
+};
+
 
 /*inherits from Panel and is used to display information about a tree*/
 wsp.DisplayTreePanel = function(name) {
@@ -102,7 +120,7 @@ wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
 
 };
 
-/*inherits from Panel and is used to display information about a tree*/
+/*inherits from Panel and is used to edit information about a tree*/
 wsp.EditTreePanel = function(name) {
   wsp.Panel.call(this, name);
   
@@ -180,18 +198,88 @@ wsp.EditTreePanel.prototype.update = function() {
     
       this.close();
     })
-    .fail(function(jqXHR, textStatus, errorThrown) {
-      var error = "Error: ";
-      if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
-        //console.log("Error: " + jqXHR.responseJSON.error);
-        error += jqXHR.responseJSON.error;
-      } else {
-        //console.log("Error: " + errorThrown);
-        error += errorThrown;
-      }
+    .fail(this.onAjaxFail);
+};
+
+ 
+/*
+  panel where user can login
+*/ 
+wsp.LoginPanel = function(name) {
+  wsp.Panel.call(this, name);
+  
+  //tell what to do when click on update
+  this.domPanel.find("button.login").click($.proxy(this.login, this));
+  this.domPanel.find("button.cancel").click($.proxy(this.close, this));
+  
+};
+
+wsp.LoginPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+//set "constructor" property as per mozilla developer docs
+wsp.LoginPanel.prototype.constructor = wsp.LoginPanel;
+
+/*
+  Attempts to log user in
+*/
+wsp.LoginPanel.prototype.login = function() {
+
+  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+                      data: {verb: "login", noun: "user",
+                      username: this.domPanel.find(".username").val(),
+                      password: this.domPanel.find(".password").val()},
+                      dataType: "json",
+                      context: this})    
+    .done(function(data){
+      var user = new wsp.User({dbUser: data.user});
+      //want to switch to user panel
+      wspApp.map.panels.user.open({base: user});
       
-      this.domPanel.find(".error").text(error);
-        
-    });
+    })
+    .fail(this.onAjaxFail);
+};
+    
+wsp.UserPanel = function(name) {
+  wsp.Panel.call(this, name);
+
+  this.user = null;
+  
+  //tell what to do when click on update
+  this.domPanel.find("button.logout").click($.proxy(this.logout, this));
+  this.domPanel.find("button.close").click($.proxy(this.close, this));
+  
+};
+
+wsp.UserPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+//set "constructor" property as per mozilla developer docs
+wsp.UserPanel.prototype.constructor = wsp.UserPanel;
+
+
+wsp.UserPanel.prototype.onOpen = function(event, ui) {
+  this.user = this.openOpts.base; //keep for convenience
+  var s = "No user logged in";
+  if (this.user) {
+    s = this.user.displayName;
+  }
+  
+  this.domPanel.find(".display-name").text(s);
+  
+};
+
+
+/*
+  Attempts to log user in
+*/
+
+wsp.UserPanel.prototype.logout = function() {
+
+  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+                      data: {verb: "logout", noun: "user"},                      
+                      dataType: "json",
+                      context: this})    
+    .done(function(data){
+      this.user = null;
+      this.close();
+    })
+    .fail(this.onAjaxFail);
   
 };

@@ -23,7 +23,7 @@ class UserManager {
       case "update":
       case "logout":
       case "modify": //this is modifying a user other than self
-        $loggedInUser = $this->loadFromSession();
+        $loggedInUser = $this->getLoggedInUser();
         
 /* temp just to test adding a user       
         $loggedInUser = new User();
@@ -97,7 +97,7 @@ class UserManager {
     returns a new user if values for one were saved.
     returns null otherwise
   */
-  public function loadFromSession() {    
+  public function getLoggedInUser() {    
     $user = null;
     if (isset($_SESSION["loggedinuser"])) {
       $user = new User();

@@ -18,7 +18,21 @@ wsp.Map = function () {
   this.panels = {};
   this.panels.displayTree = new wsp.DisplayTreePanel("tree-info-panel");
   this.panels.editTree = new wsp.EditTreePanel("tree-edit-panel");
+  this.panels.login = new wsp.LoginPanel("login-panel");
+  this.panels.user = new wsp.UserPanel("user-panel");
   //this.treePanel = $("#tree-info-panel"); //returns jquery object
+  
+  $("#user-settings").click($.proxy(function(){
+    console.log("good start");
+    var user = this.panels.user.user;
+    if (user) {
+      wspApp.map.panels.user.open({base: user});
+    } else {
+      wspApp.map.panels.login.open();
+    }
+    
+  }, this));
+  
   
   this.requestTrees = function () {
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
@@ -162,8 +176,14 @@ wsp.Taxon = function (opts) {
     }
   }
   
-  
-  
-  
+};
+
+/*Class representing a user.*/
+wsp.User = function (opts) {
+  opts = opts || {};
+  opts.dbUser = opts.dbUser || {};
+  this.id = opts.dbUser.id || -1;
+  this.username = opts.dbUser.username;
+  this.displayName = opts.dbUser.displayName;
   
 };

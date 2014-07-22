@@ -1,35 +1,56 @@
 <?php
 
 include_once "./php/utility.php";
+include_once "./php/user.php";
 
 /**
   Simple object that handles database actions for a tree
  */
 class TreeManager {
 
+  private $userManager_;
+
+  public function __construct($userManager) {
+    $this->userManager_ = $userManager;
+  }
   //at the moment, nothing interesting in constructor/destructor
   
   /*
     Determines what to do based on request parameters
   */
   public function processRequest($dh) {
-    $tree = $this->createTreeFromRequest($dh);
     $jd = new JsonData();
-    switch ($dh->getParameter("verb")) {
-      case "get":
-        $jd = $this->find($dh);
-        break;
-      case "update":
-        $jd = $tree->update($dh);
-        break;
-      case "add":
-        $jd = $tree->add();
-        break;
-      case "delete":
-        $jd = $tree->delete();
-        break;
-      default:
-        $jd->set("error", "Invalid verb given");
+    
+    $verb = $dh->getParameter("verb");
+    if ($verb == "get") {
+      $jd = $this->find($dh);
+    } else {
+      $user = $this->userManager_->getLoggedInUser(); //these actions require being logged in
+      if ($user === null) {
+        $jd->set("error", "That action requires being logged in");
+      } else {
+        $tree = $this->createTreeFromRequest($dh);
+        
+        
+        switch ($verb) {
+          case "update":
+            if ($user->hasPrivilege(UserPrivilege::UPDATE_TREE)) {
+              $jd = $tree->update($dh);
+            } else {
+              $jd->set("error", "User does not have permission to update tree");
+            }
+            break;
+          case "add":
+            $jd = $tree->add();
+            break;
+          case "delete":
+            $jd = $tree->delete();
+            break;
+          default:
+            $jd->set("error", "Invalid verb given");
+        }
+        
+      }
     }
 
     return $jd;

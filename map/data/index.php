@@ -27,16 +27,17 @@ try {
 
   $dh = new DataHelper();
   $manager = null; //will be tree, taxon, or user
+  $um = new UserManager();
 
   switch ($dh->getParameter("noun")) {
     case "tree":
-      $manager = new TreeManager();
+      $manager = new TreeManager($um);
       break;
     case "taxon":
       $manager = new TaxonManager();
       break;
     case "user":
-      $manager = new UserManager();
+      $manager = $um;
       break;
     default:
       throw new Exception("Invalid noun given");
