@@ -24,7 +24,7 @@ class Config {
   
   /*settings for the generation of password hashes*/
   public $password = array(
-    "iterationCount" => 8
+    "iterationCount" => 6
   );
   
 

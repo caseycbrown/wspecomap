@@ -36,7 +36,7 @@ try {
       $manager = new TaxonManager();
       break;
     case "user":
-      $manager = new User();
+      $manager = new UserManager();
       break;
     default:
       throw new Exception("Invalid noun given");
