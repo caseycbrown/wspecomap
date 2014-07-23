@@ -14,6 +14,7 @@ wsp.Map = function () {
 
   this.trees = [];
   this.taxa = {}; //want "hashtable" not array
+  this.user = null; //set if user logs in
   
   this.panels = {};
   this.panels.displayTree = new wsp.DisplayTreePanel("tree-info-panel");
@@ -23,10 +24,8 @@ wsp.Map = function () {
   //this.treePanel = $("#tree-info-panel"); //returns jquery object
   
   $("#user-settings").click($.proxy(function(){
-    console.log("good start");
-    var user = this.panels.user.user;
-    if (user) {
-      wspApp.map.panels.user.open({base: user});
+    if (this.user) {
+      wspApp.map.panels.user.open();
     } else {
       wspApp.map.panels.login.open();
     }
@@ -185,5 +184,26 @@ wsp.User = function (opts) {
   this.id = opts.dbUser.id || -1;
   this.username = opts.dbUser.username;
   this.displayName = opts.dbUser.displayName;
+  this.privileges = opts.dbUser.privileges;
   
+  /*returns true if user has given privilege*/
+  this.hasPrivilege = function (priv) {
+    return (this.privileges.indexOf(priv) >= 0);
+  };
+  
+};
+
+/*
+  UserPrivilege values need to match those in database
+*/
+wsp.UserPrivilege = {
+  ADD_USER: 1,     //add new user
+  MODIFY_USER: 2,  //modify users other than self
+  DELETE_USER: 3,  //delete users other than self
+  ADD_TREE: 4,
+  UPDATE_TREE: 5,
+  DELETE_TREE: 6,
+  ADD_TAXON: 7,
+  UPDATE_TAXON: 8,
+  DELETE_TAXON: 9
 };

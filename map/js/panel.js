@@ -32,7 +32,6 @@ wsp.Panel.prototype.open = function(opts) {
   Closes panel
 */
 wsp.Panel.prototype.close = function() {
-  console.log("closing up shop..." + this.blah);
   this.domPanel.panel("close");
 };
 
@@ -49,13 +48,11 @@ wsp.Panel.prototype.onOpen = function(event, ui) {
   subclass could override
 */
 wsp.Panel.prototype.onClose = function(event, ui) {
-  console.log("onClose called..." + this.blah);
   //override for functionality
   if (this.openOpts.prevPanel) {
     var prevPanel = this.openOpts.prevPanel;    
     this.openOpts.prevPanel = null; //don't want it to be opened again
     
-    console.log("in onclose, trying to open " + prevPanel.blah);
     prevPanel.open(this.openOpts);
   }
 };
@@ -72,9 +69,7 @@ wsp.Panel.prototype.onBeforeOpen = function (event, ui) {
   Call this method when there is an error from ajax request.
   Makes the assumption that there is a .error label on the panel
 */
-wsp.Panel.prototype.onAjaxFail = function (jqXHR, textStatus, errorThrown) {
-  console.log("onAjaxFail " + this.blah);
-  console.log(this);
+wsp.Panel.prototype.ajaxFail = function (jqXHR, textStatus, errorThrown) {
   var error = "Error: ";
   if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
     error += jqXHR.responseJSON.error;
@@ -91,16 +86,17 @@ wsp.Panel.prototype.onAjaxFail = function (jqXHR, textStatus, errorThrown) {
 wsp.DisplayTreePanel = function(name) {
   wsp.Panel.call(this, name);
   
-  //grab the edit button
-  this.tmpEdit = this.domPanel.find("input").click($.proxy(function(){
+  //hook up the edit button to click
+  this.domPanel.find(".edit").click($.proxy(function(){
     wspApp.map.panels.editTree.open({base: this.openOpts.base, prevPanel: this});
-    
-    //wspApp.map.openPanel("edit-tree", {base: this.openOpts.base,
-    //  prevPanel: name});
-      
-      
     }, this));
   
+  //for some reason removing/re-inserting button was leaving icon artifact.
+  //I'm assuming this is because of some extras that JQM leaves behind...easiest
+  //to wrap button in div and show/hide *that*
+  this.editWrapper = this.domPanel.find(".button-wrapper");
+  
+  this.editWrapper.isHidden = false;
 };
 
 wsp.DisplayTreePanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
@@ -109,15 +105,50 @@ wsp.DisplayTreePanel.prototype.constructor = wsp.DisplayTreePanel;
 
 wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   var tree = this.openOpts.base;
-  
   var taxon = wspApp.map.taxa[tree.taxonId] || {};
   var dbhUnit = (tree.dbh === 1) ? " inch" : " inches";
+
+  
+  this.toggleEditWrapper(); //show or hide
   
   this.domPanel.find(".scientific").text(taxon.sciName);
   this.domPanel.find(".common").text(taxon.common);
   this.domPanel.find(".diameter").text(tree.dbh + dbhUnit);
   this.domPanel.find("#tree-data-link").attr("href", taxon.wikiLink);
+  
+  
+};
 
+/*
+  Removes or re-inserts edit button based on user
+*/
+wsp.DisplayTreePanel.prototype.toggleEditWrapper = function () {
+  var user = wspApp.map.user;
+  //want to show or hide edit icon depending on if user is logged in and
+  //has permissions to see it
+  
+  var showButton = false;
+  showButton = user && user.hasPrivilege(wsp.UserPrivilege.UPDATE_TREE);
+  
+  if (showButton && this.editWrapper.isHidden) {
+    //TODO: implement permisisons
+    this.editWrapper.isHidden = false;
+    this.editWrapper.oldPrev.after(this.editWrapper);
+    this.editWrapper.oldPrev = null;
+    this.editWrapper.find(".edit").button().button("refresh"); 
+    
+  } else if ((!showButton) && (!this.editWrapper.isHidden)) {
+    //need to hide - remember prev sibling so that we can reinsert later
+    this.editWrapper.oldPrev = this.editWrapper.prev();
+    this.editWrapper.detach(); //detahch instead of remove saves click handler
+    this.editWrapper.isHidden = true;
+    this.editWrapper.find(".edit").button().button("refresh");
+  
+  }
+  
+
+  
+  
 };
 
 /*inherits from Panel and is used to edit information about a tree*/
@@ -147,7 +178,6 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
     var prop = null;
     var taxon = null;
     var s = "";
-    console.log(wspApp.map.taxa);
     
     var obj = wspApp.map.taxa;
     for (prop in wspApp.map.taxa) {
@@ -195,10 +225,10 @@ wsp.EditTreePanel.prototype.update = function() {
       //request, would need to undo it on failure.
       tree.taxonId = newTaxonId;
       tree.dbh = newDbh;
-    
+      
       this.close();
     })
-    .fail(this.onAjaxFail);
+    .fail(this.ajaxFail);
 };
 
  
@@ -230,19 +260,17 @@ wsp.LoginPanel.prototype.login = function() {
                       dataType: "json",
                       context: this})    
     .done(function(data){
-      var user = new wsp.User({dbUser: data.user});
+      wspApp.map.user = new wsp.User({dbUser: data.user});
       //want to switch to user panel
-      wspApp.map.panels.user.open({base: user});
+      wspApp.map.panels.user.open(); //don't pass base
       
     })
-    .fail(this.onAjaxFail);
+    .fail(this.ajaxFail);
 };
     
 wsp.UserPanel = function(name) {
   wsp.Panel.call(this, name);
 
-  this.user = null;
-  
   //tell what to do when click on update
   this.domPanel.find("button.logout").click($.proxy(this.logout, this));
   this.domPanel.find("button.close").click($.proxy(this.close, this));
@@ -255,10 +283,9 @@ wsp.UserPanel.prototype.constructor = wsp.UserPanel;
 
 
 wsp.UserPanel.prototype.onOpen = function(event, ui) {
-  this.user = this.openOpts.base; //keep for convenience
   var s = "No user logged in";
-  if (this.user) {
-    s = this.user.displayName;
+  if (wspApp.map.user) {
+    s = wspApp.map.user.displayName;
   }
   
   this.domPanel.find(".display-name").text(s);
@@ -277,9 +304,9 @@ wsp.UserPanel.prototype.logout = function() {
                       dataType: "json",
                       context: this})    
     .done(function(data){
-      this.user = null;
+      wspApp.map.user = null;
       this.close();
     })
-    .fail(this.onAjaxFail);
+    .fail(this.ajaxFail);
   
 };

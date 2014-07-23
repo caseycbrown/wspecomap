@@ -212,7 +212,8 @@ class User {
         $this->privileges_ = array();
         
         while ($curRow = $r["result"]->fetch_assoc()) {
-          $this->privileges_[(int) $curRow["privilege_code"]] = 1;
+          //$this->privileges_[(int) $curRow["privilege_code"]] = 1;
+          $this->privileges_[] = (int) $curRow["privilege_code"];
         }
 
       } else {
@@ -378,14 +379,7 @@ class User {
     returns true if user has the given privilege
   */
   public function hasPrivilege($priv) {
-    //could condense this code a little but opting for readability instead
-    $toReturn = false;
-    if (isset($this->privileges_[$priv])) {
-      if ($this->privileges_[$priv] === 1) {
-        $toReturn = true;
-      }
-    }
-    return $toReturn;
+    return in_array($priv, $this->privileges_);    
   }
   
   /*
