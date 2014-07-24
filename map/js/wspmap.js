@@ -22,6 +22,16 @@ wsp.Map = function () {
   this.panels.login = new wsp.LoginPanel("login-panel");
   this.panels.user = new wsp.UserPanel("user-panel");
   //this.treePanel = $("#tree-info-panel"); //returns jquery object
+
+  //set up marker clusterer
+  this.markerClusterer = new MarkerClusterer(wspApp.baseMap, null, 
+    {maxZoom: 19,
+    gridSize: 40,
+    styles: [
+      {url: "images/tree-icon-32.png", height: 32, width: 32},
+      {url: "images/tree-icon-48.png", height: 48, width: 48}
+      ]
+    });
   
   $("#user-settings").click($.proxy(function(){
     if (this.user) {
@@ -36,7 +46,7 @@ wsp.Map = function () {
   this.requestTrees = function () {
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
     var jqxhr = $.ajax({url: this.dataUrl,
-                        data: {verb: "get", noun: "tree", dbhmin: 30},
+                        data: {verb: "get", noun: "tree", dbhmin: 0},
                         dataType: "json",
                         context: this})    
         .done(function(data){
@@ -95,25 +105,6 @@ wsp.Map = function () {
     
   };
 
-  
-  /*
-    closes any open panels
-  */
-  
-  /*
-  this.closePanels = function () {
-    
-    //want to close any open panels
-    var p = null;
-    for (p in this.panels) {
-      if (this.panels.hasOwnProperty(p)) {
-        console.log("telling panel p to close" + this.panels[p].blah);
-        this.panels[p].close();
-      }
-    }
-
-  };
-*/
 
   selfInit();
 }; //wsp.Map
@@ -128,14 +119,17 @@ wsp.Tree = function (opts) {
   if (this.position) {
     //must create a marker on the map for the tree
     this.marker = new google.maps.Marker({
-      map: wspApp.baseMap,
+      //map: wspApp.baseMap,
       position: this.position,
       title: this.taxonId + " (" + this.dbh + " inches!)",
-      icon: "images/tree-icon-32.png",
+      icon: "images/tree-icon-b.png",
       //easy way for marker to know about tree when it is clicked on - avoids
       //need to change context later on
       tree: this
     });
+    
+    //TO-DO: change marker stuff - this is just to test clusterer
+    wspApp.map.markerClusterer.addMarker(this.marker);
     
   }
   
@@ -207,3 +201,97 @@ wsp.UserPrivilege = {
   UPDATE_TAXON: 8,
   DELETE_TAXON: 9
 };
+
+
+/*
+  a custom control that centers map on user.  Geolocation relies on HTML5 and
+  no attempt is made for workarounds if not supported by browser
+*/
+wsp.LocationControl = function(map) {
+  if (navigator && navigator.geolocation) {
+
+    var controlUI = $("<div></div>").addClass("lc-content ui-corner-all")
+      .prepend('<img src="images/target-40.png" />');
+  
+    var containerDiv = $("<div></div>")
+      .addClass("lc-container")
+      .attr("index", 1)
+      .append(controlUI);
+
+    //add to map's set of controls
+    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(containerDiv[0]);
+
+    // Setup click event listener
+    $(controlUI).click($.proxy(this.jumpToUser, this));
+
+    
+    this.userSymbol = {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillOpacity: .4,
+      fillColor: "blue",
+      strokeOpacity: 1.0,
+      strokeColor: "blue",
+      strokeWeight: 1.0,
+      scale: 10.0
+    };
+    
+    this.userLocation = new google.maps.Marker({
+      clickable: false,
+      icon: this.userSymbol
+    });
+
+/*    
+    this.userLocation = new google.maps.Circle({
+      //will set map and position once we know position
+      clickable: false,
+      fillColor: "#0000ff",
+      strokeColor: "#00ff00",
+      strokeWeight: 4, //pixels
+      strokeOpacity: 0.5,
+      fillOpacity: 0.4,
+      radius: 5 //meters
+    });
+*/    
+    
+
+    //start this control listening for position changes
+    this.watchID = navigator.geolocation.watchPosition($.proxy(this.onPositionUpdate, this));
+    
+  } else {
+    //TODO: alert user that browser doesn't support geolocation
+    console.log("your browser doesn't support geolocation");
+  }
+};
+
+
+wsp.LocationControl.prototype.jumpToUser = function() {
+  console.log("jumptouser");
+  //relies on HTML5
+  navigator.geolocation.getCurrentPosition(function(position) {
+    var pos = new google.maps.LatLng(position.coords.latitude,
+                                     position.coords.longitude);
+
+    wspApp.baseMap.setCenter(pos);
+    
+    }, function() {
+      console.log("get location failed");
+    });
+};
+
+wsp.LocationControl.prototype.handleError = function (msg) {
+  alert(msg);
+};
+
+
+wsp.LocationControl.prototype.onPositionUpdate = function (position) {
+  //var s = "watch position: " + position.coords.latitude + "," + position.coords.longitude;
+  //console.log(s);
+  //console.log(position);
+  
+  this.userLocation.setPosition({lat: position.coords.latitude,
+    lng: position.coords.longitude});
+  this.userLocation.setMap(wspApp.baseMap);
+  
+};
+
+

@@ -57,3 +57,14 @@ override jqm's default coloring style*/
 #tree-info-panel .edit {
   margin: 0 auto;
 }
+
+/*lc is location control*/
+.lc-container {
+  padding: 5px;
+}
+.lc-content {
+  border: 1px solid #767676;
+  background-color: white;
+  opacity: .75;
+  cursor: pointer;
+}

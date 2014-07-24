@@ -26,6 +26,7 @@
     <script src="https://maps.googleapis.com/maps/api/js?v=3"></script>
     <script src="js/wspmap.js" type="text/javascript"></script>
     <script src="js/panel.js" type="text/javascript"></script>
+    <script src="js/markerclusterer_compiled.js" type="text/javascript"></script>
 
     
     <link rel="stylesheet" href="css/style.css"/>
@@ -34,12 +35,26 @@
       $( document ).on( "pagecreate", "#map-page", function() {
         wspApp.baseMap = new google.maps.Map(document.getElementById('map-canvas'),
             { zoom: 17,
-              center: new google.maps.LatLng(40.731030, -73.997300)
+              center: new google.maps.LatLng(40.731030, -73.997300),
+              streetViewControl: false,
+              mapTypeControlOptions: {
+                position: google.maps.ControlPosition.TOP_LEFT
+              }
+
+
         });
 
         wspApp.map = new wsp.Map();
+
+        //load data (async requests)
         wspApp.map.requestTrees();
         wspApp.map.requestTaxa();
+        
+        //now add a custom control that jumps to user's location.
+        //note that this control won't add itself if html5's navigator.geolocation
+        //doesn't exist        
+        var lc = new wsp.LocationControl(wspApp.baseMap);
+        
       });
          
     </script>
@@ -50,7 +65,10 @@
     
       <div data-role="header" data-position="fixed">
           <h1>WSP Eco Map</h1>
-          <a id="user-settings" href="" data-position="right" data-icon="gear" data-iconpos="notext">Add</a>
+          <button id="user-settings"
+            class="ui-btn ui-btn-right ui-corner-all ui-btn-a ui-mini ui-btn-icon-notext ui-icon-gear"
+            type="button"
+            >Options</button>
       </div><!-- /header -->
 
       <div role="main" class="ui-content">
@@ -142,6 +160,7 @@
             class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
         
       </div><!-- /panel -->
+
     </div>
       
     
