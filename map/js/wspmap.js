@@ -21,6 +21,7 @@ wsp.Map = function () {
   this.panels.editTree = new wsp.EditTreePanel("tree-edit-panel");
   this.panels.login = new wsp.LoginPanel("login-panel");
   this.panels.user = new wsp.UserPanel("user-panel");
+  this.panels.message = new wsp.MessagePanel("message-panel");
   //this.treePanel = $("#tree-info-panel"); //returns jquery object
 
   //set up marker clusterer
@@ -221,10 +222,6 @@ wsp.LocationControl = function(map) {
     //add to map's set of controls
     map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(containerDiv[0]);
 
-    // Setup click event listener
-    $(controlUI).click($.proxy(this.jumpToUser, this));
-
-    
     this.userSymbol = {
       path: google.maps.SymbolPath.CIRCLE,
       fillOpacity: .4,
@@ -252,46 +249,126 @@ wsp.LocationControl = function(map) {
       radius: 5 //meters
     });
 */    
-    
 
-    //start this control listening for position changes
-    this.watchID = navigator.geolocation.watchPosition($.proxy(this.onPositionUpdate, this));
+    //calling watchPosition (which happens automatically) will cause
+    //onPositionError to be called if user
+    //has denied location sharing for this site.  Don't want it popping up error
+    //message in that case, but want the ability to later enable messages if user
+    //does something deliberate that requires location
+    this.suppressErrorMessage = true;
+    
+    
+    /*another note about watchPosition: if the location sharing setting for the
+    page is "always ask" and the user selects "don't share now" then
+    watchPosition does not call either callback - either success or
+    error (at least on Firefox 24 in Windows 7.  I need to check more cases).
+    the function still returns a watchId.  Because I need some way of knowing
+    if it's actually regularly updating position, I have this boolean which I
+    set myself after it first hits success callback
+    */
+    this.isWatching = false;
+
+
+    this.geoOpts = {enableHighAccuracy: true, maximumAge: 100};
+    // Setup click event listener
+    $(controlUI).click($.proxy(function() {
+      this.suppressErrorMessage = false; //want user to get possible error message
+      navigator.geolocation.getCurrentPosition(
+        $.proxy(this.jumpToUser, this),
+        $.proxy(this.onPositionError, this),
+        this.geoOpts);
+      }, this));
+    
+    this.startWatching();
+  
     
   } else {
     //TODO: alert user that browser doesn't support geolocation
-    console.log("your browser doesn't support geolocation");
+    wspApp.map.panels.message.open({error: "Your browser doesn't support geolocation"});
   }
 };
 
 
-wsp.LocationControl.prototype.jumpToUser = function() {
-  console.log("jumptouser");
-  //relies on HTML5
-  navigator.geolocation.getCurrentPosition(function(position) {
-    var pos = new google.maps.LatLng(position.coords.latitude,
-                                     position.coords.longitude);
+wsp.LocationControl.prototype.startWatching = function() {
+  //start this control listening for position changes
+    this.watchID = navigator.geolocation.watchPosition(
+      $.proxy(this.onPositionUpdate, this),
+      $.proxy(this.onPositionError, this),
+      this.geoOpts
+    );
+};
 
+wsp.LocationControl.prototype.jumpToUser = function(position) {
+  console.log("jumptouser '" + this.watchID + "'");
+  this.suppressErrorMessage = true;
+  //relies on HTML5
+  var pos = new google.maps.LatLng(position.coords.latitude,
+                                    position.coords.longitude);
     wspApp.baseMap.setCenter(pos);
     
-    }, function() {
-      console.log("get location failed");
+  this.setUserLocation({
+    position: {lat: position.coords.latitude,
+              lng: position.coords.longitude},
+    moveMap: true
     });
+    
+    if (!this.isWatching) {
+      this.startWatching();
+    }
+  
+    
 };
 
-wsp.LocationControl.prototype.handleError = function (msg) {
-  alert(msg);
+wsp.LocationControl.prototype.setUserLocation = function (opts) {
+  opts = opts || {};
+  if (opts.position) {
+    this.userLocation.setPosition(opts.position);
+    //TODO: re-arrange setMap so it only needs to be called once
+    this.userLocation.setMap(wspApp.baseMap);
+    
+    if (opts.moveMap) {
+      wspApp.baseMap.setCenter(opts.position);
+    }
+  }
+  
+  
 };
-
 
 wsp.LocationControl.prototype.onPositionUpdate = function (position) {
-  //var s = "watch position: " + position.coords.latitude + "," + position.coords.longitude;
-  //console.log(s);
-  //console.log(position);
+  var s = "watch position: " + position.coords.latitude + "," + position.coords.longitude;
+  console.log(s);
+  this.isWatching = true;
   
-  this.userLocation.setPosition({lat: position.coords.latitude,
-    lng: position.coords.longitude});
-  this.userLocation.setMap(wspApp.baseMap);
-  
+  this.setUserLocation({position: {lat: position.coords.latitude,
+    lng: position.coords.longitude}});
+    
 };
 
-
+wsp.LocationControl.prototype.onPositionError = function (error) {
+  var msg = "";
+  switch(error.code) {
+    case error.PERMISSION_DENIED:
+      msg = "It appears that you have denied permission for this " +
+      "site to access your location.  If you would like to change this, please " +
+      "change your settings to allow your browser to share location for this site.";
+      break;
+    case error.POSITION_UNAVAILABLE:
+      msg ="Sorry, this device is having (hopefully temporary) trouble finding " +
+        "your location.  Please try again later.";
+      break;
+    case error.TIMEOUT:
+      msg = "The request to get user location timed out." + error.message;
+      break;
+    default:
+      msg = "An unknown error occurred." + error.message;
+      break;
+  }
+  
+  console.log(msg);
+  if (!this.suppressErrorMessage) {
+    wspApp.map.panels.message.open({error: msg});
+    this.suppressErrorMessage = true;
+  }
+  
+  
+};

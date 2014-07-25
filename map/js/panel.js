@@ -310,3 +310,25 @@ wsp.UserPanel.prototype.logout = function() {
     .fail(this.ajaxFail);
   
 };
+
+
+wsp.MessagePanel = function(name) {
+  wsp.Panel.call(this, name);
+
+  //tell what to do when click on update
+  this.domPanel.find("button.close").click($.proxy(this.close, this));
+  
+};
+
+wsp.MessagePanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+//set "constructor" property as per mozilla developer docs
+wsp.MessagePanel.prototype.constructor = wsp.MessagePanel;
+
+
+wsp.MessagePanel.prototype.onBeforeOpen = function(event, ui) {
+  var s = this.openOpts.error || "(sorry, no message to report)";
+  
+  this.domPanel.find(".error").text(s);
+  
+};
+
