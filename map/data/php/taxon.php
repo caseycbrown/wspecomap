@@ -22,7 +22,7 @@ class TaxonManager {
         $jd = $taxon->update($dh);
         break;
       case "add":
-        $jd = $taxon->add();
+        $jd = $taxon->add($dh);
         break;
       case "delete":
         $jd = $taxon->delete();
@@ -125,9 +125,30 @@ class Taxon {
   /* 
     Adds a taxon to database and returns jsondata object
   */
-  public function add(){    
+  public function add($dh){    
     $jd = new JsonData();
-    $jd->set("error", "Add taxon functionality not yet implemented");
+  
+    //need to replace any null values with word 'null'
+    $genus = ($this->genus_ === null) ? "null" : "'$this->genus_'";
+    $species = ($this->species_ === null) ? "null" : "'$this->species_'";
+    $common = ($this->common_ === null) ? "null" : "'$this->common_'";
+    
+    $s = "call add_taxon($genus, $species, $common)";
+    
+    
+    
+    $r = $dh->executeQuery($s);
+    
+    if ($r["error"]) {
+      $jd->set("error", "Error attempting to add taxon" . "..." . $r["error"]);
+    } else { 
+      //want to grab returned id
+      $curRow = $r["result"]->fetch_assoc(); //should only be one row
+      $this->id_ = (int) $curRow["taxon_id"];
+      
+      $jd->set("taxon", $this->getAttributes());
+    }
+    
     return $jd;
   }
 

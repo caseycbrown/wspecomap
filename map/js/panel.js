@@ -49,11 +49,11 @@ wsp.Panel.prototype.onOpen = function(event, ui) {
 */
 wsp.Panel.prototype.onClose = function(event, ui) {
   //override for functionality
-  if (this.openOpts.prevPanel) {
-    var prevPanel = this.openOpts.prevPanel;    
-    this.openOpts.prevPanel = null; //don't want it to be opened again
+  if (this.closeOpts) {
+    var co = this.closeOpts;    
+    this.closeOpts = null; //for next time panel is opened
     
-    prevPanel.open(this.openOpts);
+    co.panel.open(co.openOpts);
   }
 };
 
@@ -88,7 +88,7 @@ wsp.DisplayTreePanel = function(name) {
   
   //hook up the edit button to click
   this.domPanel.find(".edit").click($.proxy(function(){
-    wspApp.map.panels.editTree.open({base: this.openOpts.base, prevPanel: this});
+    wspApp.map.panels.editTree.open({base: this.openOpts.base});
     }, this));
   
   //for some reason removing/re-inserting button was leaving icon artifact.
@@ -105,7 +105,8 @@ wsp.DisplayTreePanel.prototype.constructor = wsp.DisplayTreePanel;
 
 wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   var tree = this.openOpts.base;
-  var taxon = wspApp.map.taxa[tree.taxonId] || {};
+  //var taxon = wspApp.map.taxa.dataHash[tree.taxonId] || {};
+  var taxon = wspApp.map.taxa.getTaxon(tree.taxonId) || {};
   var dbhUnit = (tree.dbh === 1) ? " inch" : " inches";
 
   
@@ -158,12 +159,24 @@ wsp.EditTreePanel = function(name) {
   //tell what to do when click on update
   this.domPanel.find("button.update").click($.proxy(this.update, this));
   this.domPanel.find("button.cancel").click($.proxy(this.close, this));
+  this.domPanel.find("select.taxon").change($.proxy(this.onSelectChange, this));
+  
   
 };
 
 wsp.EditTreePanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
 //set "constructor" property as per mozilla developer docs
 wsp.EditTreePanel.prototype.constructor = wsp.EditTreePanel;
+
+/*
+  want to go back to display tree panel
+*/
+wsp.EditTreePanel.prototype.close = function() {
+  this.domPanel.panel("close");
+  wspApp.map.panels.displayTree.open(wspApp.map.panels.displayTree.openOpts);
+};
+
+
 
 wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
   var tree = this.openOpts.base;
@@ -172,23 +185,47 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
   var sel = this.domPanel.find("select.taxon"); //save in variable for convenience
   sel.empty();
   
-  if (wspApp.map.taxa.length === 0) {
+  if (wspApp.map.taxa.dataArray.length === 0) {
     sel.append("<option value='-1'>Unable to load taxon</option>");
   } else {
     var prop = null;
     var taxon = null;
     var s = "";
+
+
+    var i = 0,
+      len = wspApp.map.taxa.dataArray.length;
+    for (i = 0; i < len; i++) {
+      taxon = wspApp.map.taxa.dataArray[i];
+      s = "<option value='" + taxon.id + "'";
+      s += (taxon.id === tree.taxonId) ? " selected" : "";
+      s += ">" + taxon.sciName + " | " + taxon.common + "</option>";
+      sel.append(s);  
+
+    }
     
+    //if user has permissions, pop in add new taxon option
+    var user = wspApp.map.user;    
+    if (user && user.hasPrivilege(wsp.UserPrivilege.ADD_TAXON)) {
+      s = "<option value='addNew'>...(add new taxon)...</option>";
+      sel.append(s);
+    }
+
+    
+    
+/*    
     var obj = wspApp.map.taxa;
-    for (prop in wspApp.map.taxa) {
-      if (wspApp.map.taxa.hasOwnProperty(prop)) {
-        taxon = wspApp.map.taxa[prop];
+    for (prop in obj) {
+      if (obj.hasOwnProperty(prop)) {
+        taxon = obj[prop];
         s = "<option value='" + taxon.id + "'";
         s += (taxon.id === tree.taxonId) ? " selected" : "";
         s += ">" + taxon.sciName + " | " + taxon.common + "</option>";
         sel.append(s);  
       }
     }
+    
+*/
   }
 
   this.domPanel.find(".diameter").val(tree.dbh);
@@ -226,6 +263,78 @@ wsp.EditTreePanel.prototype.update = function() {
       tree.taxonId = newTaxonId;
       tree.dbh = newDbh;
       
+      this.close();
+    })
+    .fail(this.ajaxFail);
+};
+
+
+/* fired when select menu changes.  If I use this menu elsewhere, should make
+it it's own object separate from this panel*/
+wsp.EditTreePanel.prototype.onSelectChange = function () {
+  var val = this.domPanel.find("select.taxon option:selected").val();
+  console.log("on change: " + val);
+  
+  if (val === "addNew") {
+    //open add taxon panel
+    wspApp.map.panels.addTaxon.open();
+    
+  }
+};
+
+/*inherits from Panel and is used to add a new taxon*/
+wsp.AddTaxonPanel = function(name) {
+  wsp.Panel.call(this, name);
+  
+  //tell what to do when click on update
+  this.domPanel.find("button.submit").click($.proxy(this.submit, this));
+  this.domPanel.find("button.cancel").click($.proxy(this.close, this));
+  
+};
+
+wsp.AddTaxonPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+//set "constructor" property as per mozilla developer docs
+wsp.AddTaxonPanel.prototype.constructor = wsp.AddTaxonPanel;
+
+wsp.AddTaxonPanel.prototype.onBeforeOpen = function(event, ui) {
+  //clear inputs in case they have been opened before
+  this.domPanel.find(".genus").val(null);
+  this.domPanel.find(".species").val(null);
+  this.domPanel.find(".common").val(null);
+  
+  this.domPanel.find(".error").text(null); //clear any error msg from previous time
+};
+
+/*
+  want to go back to edit tree panel
+*/
+wsp.AddTaxonPanel.prototype.onClose = function() {
+  //pass it existing openoptions
+  wspApp.map.panels.editTree.open(wspApp.map.panels.editTree.openOpts);
+};
+
+
+/*
+  Attempts to add new taxon
+*/
+wsp.AddTaxonPanel.prototype.submit = function() {
+
+  var genus = this.domPanel.find(".genus").val(),
+    species = this.domPanel.find(".species").val(),
+    common = this.domPanel.find(".common").val();
+  
+  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+                      data: {verb: "add", noun: "taxon",
+                      genus: genus,
+                      common: common,
+                      species: species},
+                      dataType: "json",
+                      context: this})    
+    .done(function(data){
+    
+      wspApp.map.taxa.addTaxon(new wsp.Taxon({dbTaxon: data.taxon}),
+        {sort: true});
+              
       this.close();
     })
     .fail(this.ajaxFail);

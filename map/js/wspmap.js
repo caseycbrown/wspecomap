@@ -13,7 +13,8 @@ wsp.Map = function () {
   };
 
   this.trees = [];
-  this.taxa = {}; //want "hashtable" not array
+  //this.taxa = {}; //want "hashtable" not array
+  this.taxa = new wsp.TaxonList(); //want "hashtable" not array
   this.user = null; //set if user logs in
   
   this.panels = {};
@@ -22,6 +23,7 @@ wsp.Map = function () {
   this.panels.login = new wsp.LoginPanel("login-panel");
   this.panels.user = new wsp.UserPanel("user-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
+  this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
   //this.treePanel = $("#tree-info-panel"); //returns jquery object
 
   //set up marker clusterer
@@ -90,8 +92,11 @@ wsp.Map = function () {
         .done(function(data){
           var i = 0;
           for (i = 0; i < data.taxa.length; i++) {
-            this.taxa[data.taxa[i].id] = new wsp.Taxon({dbTaxon: data.taxa[i]});
+            //this.taxa[data.taxa[i].id] = new wsp.Taxon({dbTaxon: data.taxa[i]});
+            this.taxa.addTaxon(new wsp.Taxon({dbTaxon: data.taxa[i]}));
           }
+          
+          this.taxa.sort(); //after all have been added
           
         })
         .fail(function(jqXHR, textStatus, errorThrown) {
@@ -171,6 +176,56 @@ wsp.Taxon = function (opts) {
   }
   
 };
+
+/*
+  class that allows taxa to be accessed either by id or sorted by name
+*/
+wsp.TaxonList = function () {
+  this.dataHash = {};
+  this.dataArray = [];
+};
+
+wsp.TaxonList.prototype.addTaxon = function(t, opts) {
+  opts = opts || {};
+  
+  this.dataHash[t.id] = t;
+  this.dataArray.push(t);
+  
+  if (opts.sort) {    
+    this.sort();
+  }
+};
+
+/*
+  Returns taxon with given id.  May return null or undefined
+*/
+wsp.TaxonList.prototype.getTaxon = function(id) {
+  return this.dataHash[id];
+};
+
+/*
+  Sorts internal array of taxon
+*/
+wsp.TaxonList.prototype.sort = function() {
+  this.dataArray.sort(function (a,b) {
+    //if a comes first, return -1
+    //if b comes first, return 1
+    //if equal return 0
+    var r = 0;
+    
+    if (a.sciName < b.sciName) {
+      r = -1;
+    } else if (b.sciName < a.sciName) {
+      r = 1;
+    }
+    
+    return r;
+    
+  });
+  
+
+};
+
 
 /*Class representing a user.*/
 wsp.User = function (opts) {
@@ -269,10 +324,11 @@ wsp.LocationControl = function(map) {
     this.isWatching = false;
 
 
-    this.geoOpts = {enableHighAccuracy: true, maximumAge: 100};
+    this.geoOpts = {enableHighAccuracy: true, maximumAge: 100, timeout: 4000};
     // Setup click event listener
     $(controlUI).click($.proxy(function() {
       this.suppressErrorMessage = false; //want user to get possible error message
+      
       navigator.geolocation.getCurrentPosition(
         $.proxy(this.jumpToUser, this),
         $.proxy(this.onPositionError, this),
@@ -300,6 +356,7 @@ wsp.LocationControl.prototype.startWatching = function() {
 
 wsp.LocationControl.prototype.jumpToUser = function(position) {
   console.log("jumptouser '" + this.watchID + "'");
+  
   this.suppressErrorMessage = true;
   //relies on HTML5
   var pos = new google.maps.LatLng(position.coords.latitude,
@@ -337,6 +394,7 @@ wsp.LocationControl.prototype.setUserLocation = function (opts) {
 wsp.LocationControl.prototype.onPositionUpdate = function (position) {
   var s = "watch position: " + position.coords.latitude + "," + position.coords.longitude;
   console.log(s);
+  
   this.isWatching = true;
   
   this.setUserLocation({position: {lat: position.coords.latitude,
@@ -364,7 +422,7 @@ wsp.LocationControl.prototype.onPositionError = function (error) {
       break;
   }
   
-  console.log(msg);
+  //console.log(msg);
   if (!this.suppressErrorMessage) {
     wspApp.map.panels.message.open({error: msg});
     this.suppressErrorMessage = true;
