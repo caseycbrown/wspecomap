@@ -11,6 +11,7 @@ include_once "./php/utility.php";
 include_once "./config/config.php";
 include_once "./php/tree.php";
 include_once "./php/taxon.php";
+include_once "./php/observation.php";
 include_once "./php/user.php";
 
 
@@ -18,7 +19,6 @@ include_once "./php/user.php";
 $config = new Config();
 
 session_start(); //assuming we will store some session info...
-
 
 
 $jd = new JsonData();
@@ -31,10 +31,13 @@ try {
 
   switch ($dh->getParameter("noun")) {
     case "tree":
-      $manager = new TreeManager($um);
+      $manager = new TreeManager();
       break;
     case "taxon":
       $manager = new TaxonManager();
+      break;
+    case "observation":
+      $manager = new ObservationManager();
       break;
     case "user":
       $manager = $um;

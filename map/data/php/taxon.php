@@ -1,45 +1,74 @@
 <?php
 
 include_once "./php/utility.php";
+include_once "./php/manager.php";
 
 /**
   Simple object that handles database actions for a taxon
  */
-class TaxonManager {
+class TaxonManager extends Manager{
   
+  public function __construct() {
+    $this->updatePriv_ = UserPrivilege::UPDATE_TAXON;
+    $this->addPriv_ = UserPrivilege::ADD_TAXON;
+    $this->deletePriv_ = UserPrivilege::DELETE_TAXON;
+    $this->objName_ = "taxon";
+  }
+
   
   /*
     Determines what to do based on request parameters
   */
+/*  
   public function processRequest($dh) {
-    $taxon = $this->createTaxonFromRequest($dh);
+
     $jd = new JsonData();
-    switch ($dh->getParameter("verb")) {
-      case "get":
-        $jd = $this->find($dh);
-        break;
-      case "update":
-        $jd = $taxon->update($dh);
-        break;
-      case "add":
-        $jd = $taxon->add($dh);
-        break;
-      case "delete":
-        $jd = $taxon->delete();
-        break;
-      default:
-        $jd->set("error", "Invalid verb given");
+    $verb = $dh->getParameter("verb");
+    
+    if ($verb == "get") {
+      $jd = $this->find($dh);
+    } else {
+      $user = $this->userManager_->getLoggedInUser(); //these actions require being logged in
+      
+      if ($user === null) {
+        $jd->set("error", "That action requires being logged in");
+      } else {
+        $taxon = $this->createTaxonFromRequest($dh);
+        
+        switch ($verb) {
+          case "update":
+            if ($user->hasPrivilege(UserPrivilege::UPDATE_TAXON)) {
+              $jd = $taxon->update($dh);
+            } else {
+              $jd->set("error", "User does not have permission to update taxon");
+            }
+            break;
+          case "add":
+            if ($user->hasPrivilege(UserPrivilege::ADD_TAXON)) {
+              $jd = $taxon->add($dh);
+            } else {
+              $jd->set("error", "User does not have permission to add taxon");
+            }
+            break;
+          case "delete":
+            $jd = $taxon->delete();
+            break;
+          default:
+            $jd->set("error", "Invalid verb given");
+        }
+      }      
     }
 
     return $jd;
     
   }
 
+ */ 
   
   /*
     Returns a taxon that has been created from request
   */
-  private function createTaxonFromRequest($dh) {
+  protected function createObjectFromRequest($dh) {
     $attr = array();
     $attr["id"] = $dh->getParameter("taxonid");
     $attr["genus"] = $dh->getParameter("genus");
@@ -48,15 +77,22 @@ class TaxonManager {
     
     return new Taxon($attr);
   }
+
+  /*
+    Returns a taxon that has been created from a database row
+  */
+  protected function createObjectFromRow($row) {
+    return new Taxon($row);
+  }
   
 
   
   /* 
     Gets taxon(s) from database and returns jsondata object
   */
-  private function find($dh){    
-    $jd = new JsonData();
-    $taxa = array();
+  protected function findHelper($dh) {    
+    $info = array("jsonName" => "taxa");
+    
     
     //there are a number of optional parameters to pass which must be the
     //string 'null' if they are not given in url
@@ -72,6 +108,10 @@ class TaxonManager {
     
     $s = "call get_taxon($id, $genus, $species, $common)";
     
+    $info["sql"] = $s;
+    return $info;
+
+/*    
     $r = $dh->executeQuery($s);
     if ($r["error"]) {
       $jd->set("error", $r["error"]);
@@ -93,6 +133,9 @@ class TaxonManager {
     }
 
     return $jd;
+    
+    */
+    
   }
   
     

@@ -1,66 +1,26 @@
 <?php
 
 include_once "./php/utility.php";
-include_once "./php/user.php";
+include_once "./php/manager.php";
 
 /**
   Simple object that handles database actions for a tree
  */
-class TreeManager {
+class TreeManager extends Manager{
 
-  private $userManager_;
-
-  public function __construct($userManager) {
-    $this->userManager_ = $userManager;
-  }
-  //at the moment, nothing interesting in constructor/destructor
+  public function __construct() {
+    $this->updatePriv_ = UserPrivilege::UPDATE_TAXON;
+    $this->addPriv_ = UserPrivilege::ADD_TAXON;
+    $this->deletePriv_ = UserPrivilege::DELETE_TAXON;
+    $this->objName_ = "tree";
   
-  /*
-    Determines what to do based on request parameters
-  */
-  public function processRequest($dh) {
-    $jd = new JsonData();
-    
-    $verb = $dh->getParameter("verb");
-    if ($verb == "get") {
-      $jd = $this->find($dh);
-    } else {
-      $user = $this->userManager_->getLoggedInUser(); //these actions require being logged in
-      if ($user === null) {
-        $jd->set("error", "That action requires being logged in");
-      } else {
-        $tree = $this->createTreeFromRequest($dh);
-        
-        
-        switch ($verb) {
-          case "update":
-            if ($user->hasPrivilege(UserPrivilege::UPDATE_TREE)) {
-              $jd = $tree->update($dh);
-            } else {
-              $jd->set("error", "User does not have permission to update tree");
-            }
-            break;
-          case "add":
-            $jd = $tree->add();
-            break;
-          case "delete":
-            $jd = $tree->delete();
-            break;
-          default:
-            $jd->set("error", "Invalid verb given");
-        }
-        
-      }
-    }
-
-    return $jd;
-    
   }
   
+ 
   /*
     Returns a tree that has been created from request
   */
-  private function createTreeFromRequest($dh) {
+  protected function createObjectFromRequest($dh) {
     $attr = array();
     $attr["id"] = $dh->getParameter("treeid");
     $attr["taxon_id"] = $dh->getParameter("taxonid");
@@ -71,14 +31,21 @@ class TreeManager {
     return new Tree($attr);
   }
   
+  /*
+    Returns a tree that has been created from a database row
+  */
+  protected function createObjectFromRow($row) {
+    return new Tree($row);
+  }
+
+  
   
   /* 
     Returns jsondata object containing zero or more trees
   */
-  private function find($dh){    
-    $jd = new JsonData();
-    $trees = array();
-    
+  protected function findHelper($dh){    
+    $info = array("jsonName" => "trees");
+
     //there are a number of optional parameters to pass which must be the
     //string 'null' if they are not given in url
     $id = $dh->getParameter("treeid", true);
@@ -94,31 +61,10 @@ class TreeManager {
     
     $s = "call get_tree($id, $taxonId, $dbhmin, $dbhmax, " . 
       "$north, $south, $east, $west)";
-    
-    $r = $dh->executeQuery($s);
-    if ($r["error"]) {
-      $jd->set("error", $r["error"]);
-    } else {
-    
-      while ($curRow = $r["result"]->fetch_assoc()) {
-        $tree = new Tree($curRow);
-        $trees[] = $tree;            
-      }
+
+    $info["sql"] = $s;
+    return $info;
       
-      //now get out the attributes for json return.  This extra step of
-      //creating the tree by giving it attributes and then calling getAttributes
-      //seems redundant but allows the Tree object to control just which 
-      //attributes get make public (along with their names, etc)
-      $output = array();
-      foreach($trees as $tree) {
-        $output[] = $tree->getAttributes();
-      }
-      
-      $jd->set("trees", $output);
-      
-    }
-    
-    return $jd;
   }
   
 } //end TreeManager class

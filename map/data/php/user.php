@@ -82,26 +82,26 @@ class UserManager {
   /*
     saves the given user to session
   */
-  public function saveToSession($user) {
-    $_SESSION["loggedinuser"] = $user->getAttributes();
+  private function saveToSession($user) {
+    $_SESSION[Constants::USER_SESSION_VAR] = $user->getAttributes();
   }
 
   /*
     unsets the given session variable
   */  
-  public function removeSessionUser() {        
-    unset($_SESSION["loggedinuser"]);
+  private function removeSessionUser() {        
+    unset($_SESSION[Constants::USER_SESSION_VAR]);
   }
   
   /*
     returns a new user if values for one were saved.
     returns null otherwise
   */
-  public function getLoggedInUser() {    
+  public function getLoggedInUser() {
     $user = null;
-    if (isset($_SESSION["loggedinuser"])) {
+    if (isset($_SESSION[Constants::USER_SESSION_VAR])) {
       $user = new User();
-      $user->setAttributes($_SESSION["loggedinuser"]);
+      $user->setAttributes($_SESSION[Constants::USER_SESSION_VAR]);
     }
     return $user;
   }
@@ -124,7 +124,15 @@ abstract class UserPrivilege
     const ADD_TAXON = 7;
     const UPDATE_TAXON = 8;
     const DELETE_TAXON = 9;
+    const ADD_OBSERVATION = 10;
+    const UPDATE_OBSERVATION = 11; //update observation not created by self
+    const DELETE_OBSERVATION = 12; //delete observation not created by self
     
+}
+
+/*provide a way for constants without too much clutter*/
+abstract class Constants {
+  const USER_SESSION_VAR = "loggedinuser";
 }
 
 
@@ -132,13 +140,10 @@ abstract class UserPrivilege
    relatively simple object that represents a user
  */
 class User {
-  //attributes are public for convenience
   private $id_;
   private $username_;
   private $displayName_;
   private $privileges_; //array of privileges user has
-  
-  
   
   public function __construct() {
     //set defaults
@@ -278,7 +283,8 @@ class User {
             $tmp = explode(",", $val);
             foreach($tmp as $v){
               if (is_numeric($v)) {
-                $this->privileges_[(int) $v] = 1;
+                //$this->privileges_[(int) $v] = 1;
+                $this->privileges_[] = (int) $v;
               }
             }
           
@@ -378,7 +384,7 @@ class User {
   /*
     returns true if user has the given privilege
   */
-  public function hasPrivilege($priv) {
+  public function hasPrivilege($priv) {    
     return in_array($priv, $this->privileges_);    
   }
   
