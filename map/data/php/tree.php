@@ -9,9 +9,9 @@ include_once "./php/manager.php";
 class TreeManager extends Manager{
 
   public function __construct() {
-    $this->updatePriv_ = UserPrivilege::UPDATE_TAXON;
-    $this->addPriv_ = UserPrivilege::ADD_TAXON;
-    $this->deletePriv_ = UserPrivilege::DELETE_TAXON;
+    $this->updatePriv_ = UserPrivilege::UPDATE_TREE;
+    $this->addPriv_ = UserPrivilege::ADD_TREE;
+    $this->deletePriv_ = UserPrivilege::DELETE_TREE;
     $this->objName_ = "tree";
   
   }
