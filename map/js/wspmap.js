@@ -256,9 +256,9 @@ wsp.UserPrivilege = {
   ADD_TAXON: 7,
   UPDATE_TAXON: 8,
   DELETE_TAXON: 9,
-  ADD_OBSERVATION: 10,
-  UPDATE_OBSERVATION: 11,
-  DELETE_OBSERVATION: 12
+  ADD_COMMENT: 10,
+  UPDATE_COMMENT: 11,
+  DELETE_COMMENT: 12
 };
 
 
@@ -433,3 +433,354 @@ wsp.LocationControl.prototype.onPositionError = function (error) {
   
   
 };
+
+
+/*
+  Handles comments.  Does ajax work instead of having comment objects do it
+  panel is panel that holds the manager
+*/
+wsp.CommentManager = function(panel) {
+  this.comments = [];
+  this.panel = panel;
+  this.commentDiv = this.panel.domPanel.find(".comments"); //save so not always getting
+  this.curTree = null;
+  
+  //this is an input comment that always displays at beginning of comment list
+  //if current user has permission to add comment
+  this.newComment = null;
+  
+};
+
+/*
+  Called to create a new comment or update an existing one.
+  
+*/
+wsp.CommentManager.prototype.saveComment = function (comment) {
+  
+  if (comment.text) {
+    //adding or updating depends on whether comment has an id
+    var verb = (comment.id) ? "update" : "add";
+    var uid = (wspApp.map.user) ? wspApp.map.user.id : -1;
+    
+    $.ajax({url: wspApp.map.dataUrl,
+            data: {verb: verb, noun: "observation",
+              observationid: comment.id, //will be null for add
+              comments: comment.text,
+              treeid: comment.treeId || this.curTree.id},
+            dataType: "json",
+            context: this})    
+    .done(function(data){
+    
+      if (verb === "add") {
+        this.add(new wsp.Comment(this, {dbComment: data.observation}));
+        
+      } else {
+        comment.refresh(); //just update back to display
+      }
+      
+      //reset new comment in case we just added a new comment
+      this.newComment.text = null;
+      this.newComment.refresh();
+      //$("#map-page").trigger("create");
+       	
+
+      
+    
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+      this.panel.ajaxFail(jqXHR, textStatus, errorThrown);
+    });
+  
+  } else {
+    this.panel.ajaxFail(null, null, "Please add a comment before saving");
+  }
+  
+};
+
+/*
+  Deletes given comment from database
+*/
+wsp.CommentManager.prototype.deleteComment = function (comment) {
+  $.ajax({url: wspApp.map.dataUrl,
+        data: {verb: "delete", noun: "observation",
+        observationid: comment.id},
+        dataType: "json",
+        context: this})    
+  .done(function(data){
+    this.remove(comment);
+  })
+  .fail(function(jqXHR, textStatus, errorThrown) {
+    this.panel.ajaxFail(jqXHR, textStatus, errorThrown);
+  });
+
+  
+};
+
+/*
+  Requests comments for given tree and loads to internal list
+*/
+wsp.CommentManager.prototype.load = function (tree) {
+  
+  //only need to request comments from database if this is a new tree - otherwise,
+  //have already made the request.
+  if (!this.curTree || (this.curTree.id !== tree.id)) {  
+    this.curTree = tree;
+    this.clear(); //first remove existing
+
+    this.newComment = new wsp.Comment(this);
+    this.add(this.newComment);
+    
+    
+    $.ajax({url: wspApp.map.dataUrl,
+            data: {verb: "get", noun: "observation",
+            treeid: tree.id},
+            dataType: "json",
+            context: this})    
+    .done(function(data){
+    
+      var i = 0;
+      for (i = 0; i < data.observations.length; i++) {
+        this.add(new wsp.Comment(this, {dbComment: data.observations[i]}));
+      }
+    
+      //for whatever reason, just calling refresh on the listview doesn't
+      //seem to enhance newly-added list items.  Need to trigger the whole page
+      $("#map-page").trigger("create");
+    
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+      this.panel.ajaxFail(jqXHR, textStatus, errorThrown);
+    });
+
+    
+  }
+};
+
+/*
+  Removes existing comments and listeners
+*/
+wsp.CommentManager.prototype.clear = function () {
+  var i = 0,
+    l = this.comments.length;
+  for (i=0; i < l; i++) {
+    this.comments[i].remove();
+  }
+  this.comments = [];
+  
+  //this.panel.domPanel.find(".comments").empty();
+};
+
+
+/*
+  Adds given comment to internal list
+*/
+wsp.CommentManager.prototype.add = function (comment) {
+  this.comments.push(comment);
+  
+  if (this.commentDiv.children().length > 0 ) {
+    //have already put in the first "make new comment" comment, so add after it
+    this.commentDiv.children().first().after(comment.refresh());
+  } else {
+    this.commentDiv.append(comment.refresh());
+  }
+  
+  //this.panel.domPanel.find(".comments").prepend(comment.refresh());  
+  
+};
+
+/*
+  Removes given comment and listeners from internal list
+*/
+wsp.CommentManager.prototype.remove = function (comment) {
+  //look through internal list for comment
+  var i = 0, l = this.comments.length;
+  for (i=0; i < l; i++) {
+    if (this.comments[i].id === comment.id) {
+      this.comments.splice(i, 1);
+      i = l;//break from loop
+    }
+  }
+  
+  comment.remove();
+};
+
+
+/*
+  An object that knows how to draw itself based on its state
+*/
+wsp.Comment = function(manager, opts) {
+    //now the variables where we will save dom elements that get added/removed
+   var display = {dom: null, user: null, date: null, text: null},
+    edit = {dom: null, textDom: null, buttons: null};
+    
+  this.$li = null; //item that will hold display dom elements
+  
+  opts = opts || {};
+  opts.dbComment = opts.dbComment || {};
+  this.id = opts.dbComment.id || null;
+  this.text = opts.dbComment.comments || null;
+  this.date = opts.dbComment.dateCreated || null;
+  this.treeId = opts.dbComment.treeId || null;
+  //need both name and id because name is used for display and id is used for uniqueness
+  //both refer to user who created comment
+  this.username = opts.dbComment.username || null;
+  this.userId = opts.dbComment.userId || null;
+
+  /*
+    updates self in DOM.   returns $li 
+  */
+  this.refresh = function(opts) {
+    opts = opts || {};
+    
+    var allowEdit = opts.allowEdit || (this.id === null); //can edit a new comment
+    if (!this.$li) {
+      //need to create
+      this.$li = $("<li>");
+
+    }    
+    
+    //first remove children of li.  detach retains listeners and classes (as
+    //opposed to .empty() which removes some of them) and appears to be able
+    //to be called even if element is not currently part of dom.  if that
+    //proves not to be the case, will need to check first before calling detach
+    if (edit.dom) {
+      edit.dom.detach();
+    }
+    if (display.dom) {
+      display.dom.detach();
+    }
+    
+    //now determine what type to display
+    if (allowEdit) {
+      //want an input box and submit/cancel (and maybe delete) buttons
+      if (!edit.dom) {
+        edit.dom = $("<div>")
+          .addClass("comment-edit");
+        
+        edit.textDom = $("<textarea>")
+          .addClass("comments")
+          .attr("type", "text")
+          .attr("placeholder", "Add a comment");
+
+        edit.buttons = $("<div>")
+          .addClass("ui-corner-all ui-mini")
+          .attr("data-role", "controlgroup")
+          .attr("data-type", "horizontal");
+
+        edit.buttons.remove = $("<button>") //delete is a keyword
+          .addClass("delete")
+          .html("Delete")
+          .on("click", $.proxy(function(){
+            manager.deleteComment(this);
+          }, this));
+
+        
+        edit.buttons.save = $("<button>")
+          .addClass("save")
+          .html("Save")
+          .on("click", $.proxy(function(){
+            //update text field
+            this.text = edit.textDom.val();
+            manager.saveComment(this);
+          }, this));
+          
+        edit.buttons.cancel = $("<button>")
+          .addClass("cancel")
+          .html("Cancel")
+          .on("click", $.proxy(function(){
+            //want to go from editing to regular display
+            this.refresh({allowEdit: false});
+          }, this));
+
+        
+        //will always have submit.  not necessarily cancel and delete
+        edit.buttons.append(edit.buttons.save);
+                
+        //now add them appropriately
+        edit.dom.append(edit.textDom)
+          .append(edit.buttons);
+        
+      }
+
+      //at this point, dom elements exist and can add/remove/modify them as needed
+      edit.textDom.val(this.text);
+      
+      //if comment isn't new, want to allow user to cancel editing and possibly delete
+      var user = wspApp.map.user;
+      var showCancel = this.id;
+      
+      var showDelete = showCancel && user &&
+          ((user.id === this.userId) || (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)));
+      
+      this.displayButton(edit.buttons.cancel, showCancel);
+      this.displayButton(edit.buttons.remove, showDelete);
+      
+      this.$li.append(edit.dom);
+      
+    } else {
+      //want to display info
+      if (!display.dom) {
+        display.dom = $("<div>")
+          .addClass("comment-display")          
+          .on("click", $.proxy(function(){
+            //only open to allow edit if user has permissions
+            var user = wspApp.map.user;
+            if (user && ((user.id === this.userId) ||
+                         (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)))) {
+              this.refresh({allowEdit: true});  
+            }
+
+            
+            
+          }, this));
+        
+        display.text = $("<div>")
+          .addClass("comments");
+        display.date = $("<div>")
+          .addClass("date");
+        display.user = $("<div>")
+          .addClass("user");
+      
+        display.dom.append(display.user);
+        display.dom.append(display.date);
+        display.dom.append(display.text);
+      }
+      
+      display.text.text(this.text);
+      display.date.text(this.date);      
+      display.user.text(this.username || "Anonymous");
+      
+      this.$li.append(display.dom);
+      
+    }
+    
+    if (!opts.suppressCreate) {
+      $("#map-page").trigger("create");
+    }
+    
+    return this.$li;
+  };
+    
+  
+  /*called to remove this comment from DOM*/
+  this.remove = function () {
+    if (this.$li) {
+      this.$li.remove();
+    }
+  };
+  
+  /*takes a button and a boolean whether to display it or not and adds to
+  dom or removes accordingly*/
+  this.displayButton = function (button, display) {
+    if (display && (!$.contains(edit.buttons[0], button))) {
+      //add
+      //edit.buttons.append(button);
+      edit.buttons.controlgroup().controlgroup("container").append(button);
+    } else if (!display && ($.contains(edit.buttons[0], button))) {
+      //remove
+      edit.buttons.detach(button);
+    }
+    
+  };
+  
+}; //end of Comment

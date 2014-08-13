@@ -16,6 +16,52 @@ class ObservationManager extends Manager{
   
   }
   
+  /*
+    overrides manager's implementation because of a slight change in how observation
+    privileges differ
+  */
+  public function processRequest($dh) {
+    //user can delete
+    $jd = parent::processRequest($dh);
+    
+    //if action is delete or update AND the request has been denied because user
+    //does not have proper permisisons, we might still continue.  This is because
+    //the privilege check determines if the user is allowed to update or delete
+    //*any* observations.  If a user does not have that global ability the request
+    //will have been denied even for that user's own observations.
+    //So, long story short, need to check to see if the observation is one that
+    //the user created
+    $verb = $dh->getParameter("verb");
+    
+    if ((($verb === "update") || ($verb==="delete")) &&
+      (substr($jd->get("error"), 0, 29) === "User does not have permission")) {
+      
+      $obs = $this->createObjectFromRequest($dh);
+      //want to check this observation from database to verify user
+      
+      $id = $obs->getAttributes()["id"];
+      $s = "call get_observation($id, null, null, null, null)";
+      
+      
+      $test = $this->find($dh, array("sql" => $s, "jsonName" => "observation"));
+      $dbObs = new Observation($test->get("observation")[0]);
+      
+      $user = $this->getLoggedInUser();
+      
+      if ($dbObs->getAttributes()["userId"] === $user->getAttributes()["id"]) {
+        //permit the updating or deleting
+        if ($verb === "update") {
+          $jd = $obs->update($dh);
+        } else if ($verb === "delete") {
+          $jd = $obs->delete($dh);
+        }
+      }
+      
+      
+    }
+    
+    return $jd;
+  }
  
   /*
     Returns an observation that has been created from request
@@ -27,7 +73,7 @@ class ObservationManager extends Manager{
     $attr["comments"] = $dh->getParameter("comments");
     $attr["date_created"] = $dh->getParameter("date");
     $attr["user_id"] = $dh->getParameter("userid");
-    
+        
     return new Observation($attr);
   }
   
@@ -88,7 +134,8 @@ class Observation {
   private $comments_;
   private $dateCreated_;
   private $dateCreatedString_;
-  private $userId;
+  private $userId_;
+  private $username_;
   
   public function __construct($attrs) {
     
@@ -99,6 +146,7 @@ class Observation {
     $this->dateCreated_ = null;
     $this->dateCreatedString_ = null;
     $this->userId_ = null;
+    $this->username_ = null; //stored in addition to userid for display convenience
     
     date_default_timezone_set("America/New_York");
     $this->setAttributes($attrs);
@@ -107,7 +155,7 @@ class Observation {
   /* 
     Adds a tree to database and returns jsondata object
   */
-  public function add($dh){    
+  public function add($dh, $user){    
     $jd = new JsonData();
     
     //need to replace any null values with word 'null'
@@ -116,7 +164,9 @@ class Observation {
     } else {
     
       $comments = ($this->comments_ === null) ? "null" : "'$this->comments_'";
-      $userId = ($this->userId_ === null) ? "null" : "'$this->userId_'";
+      //$userId = ($this->userId_ === null) ? "null" : "'$this->userId_'";
+      $userId = $user->getAttributes()["id"];
+      $userId = ($userId === null) ? "null" : $userId;
       
       $s = "call add_observation($this->treeId_, $userId, $comments)";
       
@@ -133,6 +183,8 @@ class Observation {
         //just define it right now.  It won't be exact same as database, but
         //it will be close enough...any subsequent find calls will use db value
         $this->setAttributes(array("date_created" => date("Y-m-d")));
+        $this->setAttributes(array("user_id" => $user->getAttributes()["id"]));
+        $this->setAttributes(array("username" => $user->getAttributes()["displayName"]));
         
         
         $jd->set("observation", $this->getAttributes());
@@ -147,7 +199,15 @@ class Observation {
   */
   public function update($dh) {
     $jd = new JsonData();
-    $jd->set("error", "Update observation functionality not yet implemented");
+
+    $comments = ($this->comments_ === null) ? "null" : "'$this->comments_'";
+    $s = "call update_observation($this->id_, $comments)";
+    $r = $dh->executeQuery($s);
+    if ($r["error"]) {
+      $jd->set("error", "Error attempting to update observation" . "..." . $r["error"]);
+    } else {     
+      $jd->set("observation", $this->getAttributes());
+    }
     
     return $jd;
   }
@@ -156,9 +216,16 @@ class Observation {
   /* 
     Deletes from database and returns jsondata object
   */
-  public function delete(){    
+  public function delete($dh){    
     $jd = new JsonData();
-    $jd->set("error", "Delete observation functionality not yet implemented");
+    
+    $s = "call delete_observation($this->id_, null, null)";
+    $r = $dh->executeQuery($s);
+    
+    if ($r["error"]) {
+      $jd->set("error", "Error attempting to delete observation" . "..." . $r["error"]);
+    }//else just return empty json data
+    
     return $jd;
   }
     
@@ -173,11 +240,13 @@ class Observation {
           }
           break;        
         case "tree_id":
+        case "treeId":
           if (is_numeric($val)) {
             $this->treeId_ = (int) $val;
           }
           break;        
         case "user_id":
+        case "userId":
           if (is_numeric($val)) {
             $this->userId_ = (int) $val;
           }
@@ -185,7 +254,11 @@ class Observation {
         case "comments":
           $this->comments_ = $val;
           break;        
+        case "username":
+          $this->username_ = $val;
+          break;        
         case "date_created":
+        case "dateCreated":
           if ($val) {            
             $this->dateCreated_ = new DateTime($val);
             $this->dateCreatedString_ = $this->dateCreated_->format("Y-m-d");
@@ -207,6 +280,7 @@ class Observation {
     $attr["comments"] = $this->comments_;
     $attr["dateCreated"] = $this->dateCreatedString_;
     $attr["userId"] = $this->userId_;
+    $attr["username"] = $this->username_;
     
     return $attr;
   }

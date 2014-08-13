@@ -17,13 +17,18 @@ begin
     tree_id,
     comments,
     date_created,
-    user_id
+    observation.user_id,
+    users.display_name as username
   from
     observation
+  left join
+    users
+    on observation.user_id = users.user_id
+
   where
     observation_id = ifnull(in_observation_id, observation_id)
     and (tree_id = ifnull(in_tree_id, tree_id))
-    and ((in_user_id is null) or (user_id = in_user_id))
+    and ((in_user_id is null) or (observation.user_id = in_user_id))
     and date_created >= ifnull(in_start_date, date_created)
     and date_created <= ifnull(in_end_date, date_created)
     

@@ -77,9 +77,16 @@ wsp.Panel.prototype.ajaxFail = function (jqXHR, textStatus, errorThrown) {
     error += errorThrown;
   }
   
-  this.domPanel.find(".error").text(error);  
+  this.setError(error);
 
 };
+
+/*
+  Use to set error message on panel.  Pass null to clear error
+*/
+wsp.Panel.prototype.setError = function (msg) {
+  this.domPanel.find(".error").text(msg);
+}
 
 
 /*inherits from Panel and is used to display information about a tree*/
@@ -97,6 +104,8 @@ wsp.DisplayTreePanel = function(name) {
   this.editWrapper = this.domPanel.find(".button-wrapper");
   
   this.editWrapper.isHidden = false;
+  
+  this.commentManager = new wsp.CommentManager(this);
 };
 
 wsp.DisplayTreePanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
@@ -116,7 +125,9 @@ wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   this.domPanel.find(".common").text(taxon.common);
   this.domPanel.find(".diameter").text(tree.dbh + dbhUnit);
   this.domPanel.find("#tree-data-link").attr("href", taxon.wikiLink);
-  
+
+  this.setError(null);//clear any error msg from previous time
+  this.commentManager.load(tree);
   
 };
 
@@ -229,7 +240,7 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
   }
 
   this.domPanel.find(".diameter").val(tree.dbh);
-  this.domPanel.find(".error").text(null); //clear any error msg from previous time
+  this.setError(null);//clear any error msg from previous time
 
   
   //need to re-draw so that jqm can update selector
@@ -302,7 +313,7 @@ wsp.AddTaxonPanel.prototype.onBeforeOpen = function(event, ui) {
   this.domPanel.find(".species").val(null);
   this.domPanel.find(".common").val(null);
   
-  this.domPanel.find(".error").text(null); //clear any error msg from previous time
+  this.setError(null)//clear any error msg from previous time
 };
 
 /*
@@ -356,6 +367,14 @@ wsp.LoginPanel = function(name) {
 wsp.LoginPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
 //set "constructor" property as per mozilla developer docs
 wsp.LoginPanel.prototype.constructor = wsp.LoginPanel;
+
+
+wsp.LoginPanel.prototype.onBeforeOpen = function(event, ui) {
+  //clear inputs in case they have been opened before
+  this.domPanel.find(".password").val(null);
+  this.setError(null); //clear any error msg from previous time
+};
+
 
 /*
   Attempts to log user in
@@ -437,7 +456,7 @@ wsp.MessagePanel.prototype.constructor = wsp.MessagePanel;
 wsp.MessagePanel.prototype.onBeforeOpen = function(event, ui) {
   var s = this.openOpts.error || "(sorry, no message to report)";
   
-  this.domPanel.find(".error").text(s);
+  this.setError.text(s);
   
 };
 

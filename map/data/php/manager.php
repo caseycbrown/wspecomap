@@ -26,7 +26,7 @@ abstract class Manager {
     
     
     if ($verb === "get") {
-      $jd = $this->find($dh);
+      $jd = $this->find($dh, $this->findHelper($dh));
     } else if (($verb === "add") || ($verb === "update") || ($verb === "delete")) {
       $user = $this->getLoggedInUser(); //these actions require being logged in
       if ($user === null) {
@@ -44,7 +44,7 @@ abstract class Manager {
             break;
           case "add":
             if ($user->hasPrivilege($this->addPriv_)) {
-              $jd = $obj->add($dh);
+              $jd = $obj->add($dh, $user);
             } else {
               $jd->set("error", "User does not have permission to add $this->objName_");
             }
@@ -105,8 +105,8 @@ abstract class Manager {
     
     
     // temp just to test
-    $user = new User();
-    $user->setAttributes(array("privileges" => "10"));
+    //$user = new User();
+    //$user->setAttributes(array("privileges" => "10"));
           
 
     
@@ -118,11 +118,9 @@ abstract class Manager {
   /* 
     Returns jsondata object containing zero or more objects
   */
-  protected function find($dh){    
+  protected function find($dh, $info){    
     $jd = new JsonData();
-    
-    $info = $this->findHelper($dh);
-    
+        
     $r = $dh->executeQuery($info["sql"]);
     if ($r["error"]) {
       $jd->set("error", $r["error"]);
