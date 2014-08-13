@@ -16,54 +16,6 @@ class TaxonManager extends Manager{
   }
 
   
-  /*
-    Determines what to do based on request parameters
-  */
-/*  
-  public function processRequest($dh) {
-
-    $jd = new JsonData();
-    $verb = $dh->getParameter("verb");
-    
-    if ($verb == "get") {
-      $jd = $this->find($dh);
-    } else {
-      $user = $this->userManager_->getLoggedInUser(); //these actions require being logged in
-      
-      if ($user === null) {
-        $jd->set("error", "That action requires being logged in");
-      } else {
-        $taxon = $this->createTaxonFromRequest($dh);
-        
-        switch ($verb) {
-          case "update":
-            if ($user->hasPrivilege(UserPrivilege::UPDATE_TAXON)) {
-              $jd = $taxon->update($dh);
-            } else {
-              $jd->set("error", "User does not have permission to update taxon");
-            }
-            break;
-          case "add":
-            if ($user->hasPrivilege(UserPrivilege::ADD_TAXON)) {
-              $jd = $taxon->add($dh);
-            } else {
-              $jd->set("error", "User does not have permission to add taxon");
-            }
-            break;
-          case "delete":
-            $jd = $taxon->delete();
-            break;
-          default:
-            $jd->set("error", "Invalid verb given");
-        }
-      }      
-    }
-
-    return $jd;
-    
-  }
-
- */ 
   
   /*
     Returns a taxon that has been created from request
@@ -110,31 +62,6 @@ class TaxonManager extends Manager{
     
     $info["sql"] = $s;
     return $info;
-
-/*    
-    $r = $dh->executeQuery($s);
-    if ($r["error"]) {
-      $jd->set("error", $r["error"]);
-    } else {    
-      while ($curRow = $r["result"]->fetch_assoc()) {
-        $taxon = new Taxon($curRow);
-        $taxa[] = $taxon;            
-      }
-      
-      //now get out the attributes for json return.  This might seem like an
-      //extra step - see comment in TreeManager class for explanation
-      $output = array();
-      foreach($taxa as $taxon) {
-        $output[] = $taxon->getAttributes();
-      }
-      
-      $jd->set("taxa", $output);
-      
-    }
-
-    return $jd;
-    
-    */
     
   }
   
@@ -154,6 +81,7 @@ class Taxon {
   private $genus_;
   private $species_;
   private $common_;
+  private $color_;
   
   public function __construct($attrs) {
     //set default values
@@ -161,6 +89,7 @@ class Taxon {
     $this->genus_ = null;
     $this->species_ = null;
     $this->common_ = null;
+    $this->color_ = null;
     
     $this->setAttributes($attrs);
   }
@@ -231,6 +160,9 @@ class Taxon {
         case "common":
             $this->common_ = $val;
           break;        
+        case "color":
+            $this->color_ = $val;
+          break;        
         default:
           //ignore any others
       }
@@ -246,6 +178,7 @@ class Taxon {
     $attr["genus"] = $this->genus_;
     $attr["species"] = $this->species_;
     $attr["common"] = $this->common_;
+    $attr["color"] = $this->color_;
     
     return $attr;
   }

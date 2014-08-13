@@ -18,9 +18,13 @@ begin
     taxon_id,
     genus,
     species,
-    common
+    common,
+    hex_value as color
   from
     taxon
+  left join
+    color
+    on taxon.color_id = color.color_id
   where
     taxon_id = ifnull(in_taxon_id, taxon_id)
     and ((in_genus is null) or (genus like(concat('%', in_genus, '%'))))

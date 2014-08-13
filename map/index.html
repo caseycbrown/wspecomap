@@ -46,9 +46,11 @@
 
         wspApp.map = new wsp.Map();
 
-        //load data (async requests)
+        //load data (async requests).  load taxa first
+        wspApp.map.requestTaxa();   
         wspApp.map.requestTrees();
-        wspApp.map.requestTaxa();
+   
+        
         
         //now add a custom control that jumps to user's location.
         //note that this control won't add itself if html5's navigator.geolocation

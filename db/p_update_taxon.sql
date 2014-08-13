@@ -1,4 +1,7 @@
-/*updates taxon record.*/
+/*updates taxon record.
+At the moment, does not support updating display color - that must be done
+manually in the database
+*/
 
 delimiter //
 drop procedure if exists update_taxon//

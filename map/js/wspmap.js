@@ -12,6 +12,7 @@ wsp.Map = function () {
     console.log("wsp.Map init");
   };
 
+  this.symbolManager = new wsp.SymbolManager();
   this.trees = [];
   //this.taxa = {}; //want "hashtable" not array
   this.taxa = new wsp.TaxonList(); //want "hashtable" not array
@@ -31,8 +32,11 @@ wsp.Map = function () {
     {maxZoom: 19,
     gridSize: 40,
     styles: [
-      {url: "images/tree-icon-32.png", height: 32, width: 32},
-      {url: "images/tree-icon-48.png", height: 48, width: 48}
+      {url: "images/cluster-24.png", height: 24, width: 24},
+      {url: "images/cluster-32.png", height: 32, width: 32},
+      {url: "images/cluster-48.png", height: 48, width: 48}
+      //{url: "images/tree-icon-32.png", height: 32, width: 32},
+      //{url: "images/tree-icon-48.png", height: 48, width: 48}
       ]
     });
   
@@ -49,18 +53,16 @@ wsp.Map = function () {
   this.requestTrees = function () {
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
     var jqxhr = $.ajax({url: this.dataUrl,
-                        data: {verb: "get", noun: "tree", dbhmin: 0},
+                        data: {verb: "get", noun: "tree", dbhmin: 0, dbhmax: 100},
                         dataType: "json",
                         context: this})    
         .done(function(data){
           var i = 0;
           var marker  = null;
           var tree = null;
-
           for (i = 0; i < data.trees.length; i++) {
             tree = data.trees[i];
-            
-            
+
             this.trees.push(new wsp.Tree({
               position: {lat: tree.lat, lng: tree.lng},
               map: wspApp.baseMap,
@@ -69,7 +71,6 @@ wsp.Map = function () {
               id: tree.id              
             }));
           }
-          
           
         })
         .fail(function(jqXHR, textStatus, errorThrown) {
@@ -90,14 +91,18 @@ wsp.Map = function () {
                         dataType: "json",
                         context: this})    
         .done(function(data){
+
+
           var i = 0;
+          var t = null;
           for (i = 0; i < data.taxa.length; i++) {
             //this.taxa[data.taxa[i].id] = new wsp.Taxon({dbTaxon: data.taxa[i]});
-            this.taxa.addTaxon(new wsp.Taxon({dbTaxon: data.taxa[i]}));
+            t = new wsp.Taxon({dbTaxon: data.taxa[i]});
+            this.taxa.addTaxon(t);
+            this.symbolManager.updateSymbols(t);
           }
           
           this.taxa.sort(); //after all have been added
-          
         })
         .fail(function(jqXHR, textStatus, errorThrown) {
           if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
@@ -115,24 +120,134 @@ wsp.Map = function () {
   selfInit();
 }; //wsp.Map
 
+wsp.SymbolManager = function () {
+  var symbols_  = {};
+  
+  /*
+    returns symbol for given taxon and dbh.  
+    Creates a new symbol if one doesn't already exist
+    */
+  this.getSymbol = function(taxonId, dbh) {
+    //first check to see if we've already stored that taxon
+    var t = symbols_[taxonId] || {};
+    
+    //color might be set to null or to 0, but if it's undefined need to look up
+    if (t.color === undefined) {
+      symbols_[taxonId] = t;
+      var tax = wspApp.map.taxa.getTaxon(taxonId);
+      //taxon may not yet be defined;
+      t.color = (tax) ? tax.color : null; //set to a default
+      
+    }
+  
+    t.symbols = t.symbols || {};
+  
+    //don't need a new symbol for each separate dbh.  group dbh by adjusting
+    //it a little.
+    dbh = dbh + 1; //in case of zero, still want to display
+    dbh = Math.ceil(dbh / 5); //group into intervals.  play with this number
+  
+    var symbol = t.symbols[dbh]; //may be undefined
+    
+    //add new
+    if (!symbol) {
+      
+      //if color is null, draw a black circle with no fill
+      var fo = (t.color === null) ? 0 : 1;
+      var c = (t.color === null) ? "black" : "#" + t.color;
+      
+      symbol = {
+        markers: [], //will store the markers that use symbol
+        path: google.maps.SymbolPath.CIRCLE,
+        fillOpacity: fo,
+        fillColor: c,
+        strokeOpacity: 1.0,
+        strokeColor: c,
+        strokeWeight: 1.0,
+        scale: dbh + 2
+      };
+
+      t.symbols[dbh] = symbol;
+      
+    }
+    
+    return symbol;
+    
+  };
+  
+  /*
+    Should have taxon info before we get info about trees (and thus, need to
+    display markers for them).  However, it's possible that tree info will arrive
+    back from server first.  Instead of waiting, will draw default symbols for
+    those taxa.  When taxon then arrives, want to update to appropriate colors
+  */
+  this.updateSymbols = function(taxon) {
+    //if this taxon has not been used for any symbols, no need to update
+    var t = symbols_[taxon.id];
+    if (t) {
+      
+      t.color = taxon.color;
+      
+      var syms = t.symbols;
+      var i = 0;
+      var s = null;
+      var prop = null;
+      var c = null;
+      for (prop in syms) {
+        if (syms.hasOwnProperty(prop)) {
+          s = syms[prop];
+          
+          c = (t.color === null) ? "black" : "#" + t.color;
+          s.fillOpacity = 1;
+          s.fillColor = c;
+          s.strokeColor = c;          
+          
+          for (i=0; i < s.markers.length; i++) {
+            s.markers[i].setIcon(s);
+          }
+
+        }
+      }
+
+      
+
+      
+    }
+    
+    //var s = symbols_["test"]["60"];
+    //console.log(s);
+    //s.fillColor = "#00ff00";
+    
+    
+    //console.log(s);
+  };
+  
+};
+
 wsp.Tree = function (opts) {
   opts = opts || {};
   this.id = opts.id || -1;
   this.taxonId = opts.taxonId || "unknown";
-  this.dbh = opts.dbh || "?";
+  this.dbh = opts.dbh || 0 ; //if null, change to 0
   this.position = opts.position;
   
   if (this.position) {
     //must create a marker on the map for the tree
+    var symbol = wspApp.map.symbolManager.getSymbol(this.taxonId, this.dbh);
     this.marker = new google.maps.Marker({
       //map: wspApp.baseMap,
       position: this.position,
       title: this.taxonId + " (" + this.dbh + " inches!)",
-      icon: "images/tree-icon-b.png",
+      //icon: "images/tree-icon-b.png",
+      icon: symbol,
+      
       //easy way for marker to know about tree when it is clicked on - avoids
       //need to change context later on
       tree: this
     });
+    
+    //symbol knows which markers use it in case need to update if symbol changes
+    symbol.markers.push(this.marker); 
     
     //TO-DO: change marker stuff - this is just to test clusterer
     wspApp.map.markerClusterer.addMarker(this.marker);
@@ -142,7 +257,7 @@ wsp.Tree = function (opts) {
   this.title = "Tree: " + this.taxonId; //tmp
   
   //google.maps.event.addListener(this.marker, 'click', $.proxy(this.updateTreePanel, this));
-  google.maps.event.addListener(this.marker, 'click', function(){
+  google.maps.event.addListener(this.marker, 'click', function(){    
     wspApp.map.panels.displayTree.open({base: this.tree});
     //wspApp.map.openPanel("display-tree", {base: this.tree});
   });
@@ -159,6 +274,7 @@ wsp.Taxon = function (opts) {
   this.genus = opts.dbTaxon.genus || null;
   this.species = opts.dbTaxon.species || null;
   this.common = opts.dbTaxon.common || "*unknown*";
+  this.color = opts.dbTaxon.color;
   
   //now calculate a couple of useful strings
   this.sciName = "*unknown*";

@@ -8,7 +8,13 @@ create table if not exists taxon (
   genus varchar(100) default null,
   species varchar(100) default null,
   common varchar(100) default null,
+  color_id int default null,
   
-  primary key (taxon_id)
+  primary key (taxon_id),
+  
+  constraint fk_taxon__color_id
+    foreign key (color_id)
+    references color (color_id)
+
     
 ) engine=innodb  default charset=utf8 auto_increment=1 ;
