@@ -127,6 +127,7 @@ wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   this.domPanel.find("#tree-data-link").attr("href", taxon.wikiLink);
 
   this.setError(null);//clear any error msg from previous time
+  
   this.commentManager.load(tree);
   
 };
@@ -456,7 +457,7 @@ wsp.MessagePanel.prototype.constructor = wsp.MessagePanel;
 wsp.MessagePanel.prototype.onBeforeOpen = function(event, ui) {
   var s = this.openOpts.error || "(sorry, no message to report)";
   
-  this.setError.text(s);
+  this.setError(s);
   
 };
 

@@ -398,12 +398,12 @@ wsp.LocationControl = function(map) {
 
     this.userSymbol = {
       path: google.maps.SymbolPath.CIRCLE,
-      fillOpacity: .4,
+      fillOpacity: .75,
       fillColor: "blue",
       strokeOpacity: 1.0,
       strokeColor: "blue",
       strokeWeight: 1.0,
-      scale: 10.0
+      scale: 5.0
     };
     
     this.userLocation = new google.maps.Marker({
@@ -411,18 +411,18 @@ wsp.LocationControl = function(map) {
       icon: this.userSymbol
     });
 
-/*    
-    this.userLocation = new google.maps.Circle({
+    
+    this.accuracyCircle = new google.maps.Circle({
       //will set map and position once we know position
       clickable: false,
-      fillColor: "#0000ff",
-      strokeColor: "#00ff00",
-      strokeWeight: 4, //pixels
+      fillColor: "blue",
+      strokeColor: "blue",
+      strokeWeight: .5, //pixels
       strokeOpacity: 0.5,
-      fillOpacity: 0.4,
-      radius: 5 //meters
+      fillOpacity: 0.09,
+      radius: 10 //meters - will be changed on updates
     });
-*/    
+    
 
     //calling watchPosition (which happens automatically) will cause
     //onPositionError to be called if user
@@ -499,8 +499,11 @@ wsp.LocationControl.prototype.setUserLocation = function (opts) {
   opts = opts || {};
   if (opts.position) {
     this.userLocation.setPosition(opts.position);
+    this.accuracyCircle.setCenter(opts.position);
+    this.accuracyCircle.setRadius(opts.accuracy);
     //TODO: re-arrange setMap so it only needs to be called once
     this.userLocation.setMap(wspApp.baseMap);
+    this.accuracyCircle.setMap(wspApp.baseMap);
     
     if (opts.moveMap) {
       wspApp.baseMap.setCenter(opts.position);
@@ -517,7 +520,7 @@ wsp.LocationControl.prototype.onPositionUpdate = function (position) {
   this.isWatching = true;
   
   this.setUserLocation({position: {lat: position.coords.latitude,
-    lng: position.coords.longitude}});
+    lng: position.coords.longitude}, accuracy: position.coords.accuracy});
     
 };
 
