@@ -7,26 +7,45 @@ wsp.Map = function () {
 
   //following are the private variables for Map
   this.dataUrl = "data/";
-        
+       
+  var that = this;
   function selfInit() {
-    console.log("wsp.Map init");
+    //set up default visibilities
+    var sm = that.storageManager;
+    var val = sm.get(sm.keys.showLocation);
+    //if val is null, go with default, which is true
+    val = (val === null) ? true : (val === "true");
+    that.setUserLocationDisplay(val);
+    
+    //do the same for minetta creek, though the default is false
+    val = sm.get(sm.keys.showMinetta);
+    val = (val === null) ? false : (val === "true");
+    that.setCreekDisplay(val);
+
+    
   };
 
+  this.locationControl = null;
   this.symbolManager = new wsp.SymbolManager();
+  this.storageManager = new wsp.StorageManager();
   this.trees = [];
   //this.taxa = {}; //want "hashtable" not array
   this.taxa = new wsp.TaxonList(); //want "hashtable" not array
   this.user = null; //set if user logs in
   
   this.panels = {};
+  this.panels.settings = new wsp.SettingsPanel("settings-panel");
   this.panels.displayTree = new wsp.DisplayTreePanel("tree-info-panel");
   this.panels.editTree = new wsp.EditTreePanel("tree-edit-panel");
   this.panels.login = new wsp.LoginPanel("login-panel");
   this.panels.user = new wsp.UserPanel("user-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
   this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
-  //this.treePanel = $("#tree-info-panel"); //returns jquery object
 
+  //set up location control this after panels are set up
+  this.locationControl = new wsp.LocationControl(this);
+
+  
   //set up marker clusterer
   this.markerClusterer = new MarkerClusterer(wspApp.baseMap, null, 
     {maxZoom: 19,
@@ -42,10 +61,11 @@ wsp.Map = function () {
   
   $("#user-settings").click($.proxy(function(){
     if (this.user) {
-      wspApp.map.panels.user.open();
+    //  wspApp.map.panels.user.open();
     } else {
-      wspApp.map.panels.login.open();
+    //  wspApp.map.panels.login.open();
     }
+    wspApp.map.panels.settings.open();
     
   }, this));
   
@@ -53,7 +73,7 @@ wsp.Map = function () {
   this.requestTrees = function () {
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
     var jqxhr = $.ajax({url: this.dataUrl,
-                        data: {verb: "get", noun: "tree", dbhmin: 0, dbhmax: 100},
+                        data: {verb: "get", noun: "tree", dbhmin: 60, dbhmax: 100},
                         dataType: "json",
                         context: this})    
         .done(function(data){
@@ -116,9 +136,54 @@ wsp.Map = function () {
     
   };
 
+  /*call to set visibility of user location*/
+  this.setUserLocationDisplay = function(displayUser) {
+    this.locationControl.setVisibility(displayUser);
+  };
+  
+  /*call to set visibility of Minetta Creek overlay*/
+  this.setCreekDisplay = function(displayCreek) {
+    console.log("need to set creek display to " + displayCreek);
+  };
 
+  this.addLocationControl = function() {
+    //var lc = new wsp.LocationControl(wspApp.baseMap);
+  };
+  
   selfInit();
 }; //wsp.Map
+
+
+/*Gets and sets info from localStorage */
+
+wsp.StorageManager = function () {
+  //use these keys instead of the same string sprinkled throughout code
+  this.keys = {
+    showLocation: "show-location",
+    showMinetta: "show-minetta"
+    };
+};
+
+/*saves data to storage
+example: set(storageManager.keys.showLocation, "true")
+*/
+wsp.StorageManager.prototype.set = function(key, obj) {
+  if (localStorage) {
+    localStorage.setItem(key, obj);
+  }
+};
+
+/*gets data from storage
+*/
+wsp.StorageManager.prototype.get = function(key) {
+  var obj = null;
+  if (localStorage) {
+    obj = localStorage.getItem(key);
+  }
+  return obj;
+};
+
+
 
 wsp.SymbolManager = function () {
   var symbols_  = {};
@@ -383,19 +448,30 @@ wsp.UserPrivilege = {
   no attempt is made for workarounds if not supported by browser
 */
 wsp.LocationControl = function(map) {
-  if (navigator && navigator.geolocation) {
+  this.map = map;
+  this.baseMap = wspApp.baseMap;
+
+  if (window.navigator && navigator.geolocation) {
+    this.indexInMap = -1; //where in google map's control array this control is
+    this.geoOpts = {enableHighAccuracy: true, maximumAge: 100, timeout: 4000};
 
     var controlUI = $("<div></div>").addClass("lc-content ui-corner-all")
-      .prepend('<img src="images/target-40.png" />');
+      .prepend('<img src="images/target-40.png" />')
+      .click($.proxy(function() {
+        this.suppressErrorMessage = false; //want user to get possible error message
+        navigator.geolocation.getCurrentPosition(
+          $.proxy(this.jumpToUser, this),
+          $.proxy(this.onPositionError, this),
+          this.geoOpts);
+      }, this));
   
-    var containerDiv = $("<div></div>")
+  
+    this.containerDiv = $("<div></div>")
       .addClass("lc-container")
       .attr("index", 1)
       .append(controlUI);
-
-    //add to map's set of controls
-    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(containerDiv[0]);
-
+      
+    
     this.userSymbol = {
       path: google.maps.SymbolPath.CIRCLE,
       fillOpacity: .75,
@@ -442,27 +518,37 @@ wsp.LocationControl = function(map) {
     */
     this.isWatching = false;
 
-
-    this.geoOpts = {enableHighAccuracy: true, maximumAge: 100, timeout: 4000};
-    // Setup click event listener
-    $(controlUI).click($.proxy(function() {
-      this.suppressErrorMessage = false; //want user to get possible error message
-      
-      navigator.geolocation.getCurrentPosition(
-        $.proxy(this.jumpToUser, this),
-        $.proxy(this.onPositionError, this),
-        this.geoOpts);
-      }, this));
     
     this.startWatching();
   
     
   } else {
     //TODO: alert user that browser doesn't support geolocation
-    wspApp.map.panels.message.open({error: "Your browser doesn't support geolocation"});
+    var s = "Your browser doesn't support geolocation.  You can still use this map" +
+      " but you won't be able to see where you are located.";
+    this.map.panels.message.open({error: s});
   }
 };
 
+/*set whether or not can see this control (user dot and control icon)*/
+wsp.LocationControl.prototype.setVisibility = function (isVisible) {
+  this.baseMap = (isVisible) ? wspApp.baseMap : null;
+  this.userLocation.setMap(this.baseMap);
+  this.accuracyCircle.setMap(this.baseMap);
+  
+  //add or remove display div from map's set of controls
+  if (isVisible && (this.indexInMap) === -1) {
+    //pushign returns the length of array; subtract one to get index
+    this.indexInMap =
+      wspApp.baseMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(this.containerDiv[0]) -1;
+  } else if (!isVisible && (this.indexInMap > -1)) {
+    //want to hide.  use wspApp.baseMap b/c this.baseMap is null at this point
+    wspApp.baseMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].removeAt(this.indexInMap);
+    this.indexInMap = -1;
+  }
+  
+  
+};
 
 wsp.LocationControl.prototype.startWatching = function() {
   //start this control listening for position changes
@@ -480,7 +566,6 @@ wsp.LocationControl.prototype.jumpToUser = function(position) {
   //relies on HTML5
   var pos = new google.maps.LatLng(position.coords.latitude,
                                     position.coords.longitude);
-    wspApp.baseMap.setCenter(pos);
     
   this.setUserLocation({
     position: {lat: position.coords.latitude,
@@ -491,7 +576,6 @@ wsp.LocationControl.prototype.jumpToUser = function(position) {
     if (!this.isWatching) {
       this.startWatching();
     }
-  
     
 };
 
@@ -502,11 +586,11 @@ wsp.LocationControl.prototype.setUserLocation = function (opts) {
     this.accuracyCircle.setCenter(opts.position);
     this.accuracyCircle.setRadius(opts.accuracy);
     //TODO: re-arrange setMap so it only needs to be called once
-    this.userLocation.setMap(wspApp.baseMap);
-    this.accuracyCircle.setMap(wspApp.baseMap);
+    //this.userLocation.setMap(this.baseMap);
+    //this.accuracyCircle.setMap(this.baseMap);
     
-    if (opts.moveMap) {
-      wspApp.baseMap.setCenter(opts.position);
+    if (opts.moveMap && this.baseMap) { //basemap may be null, so don't jump
+      this.baseMap.setCenter(opts.position);
     }
   }
   
@@ -546,7 +630,7 @@ wsp.LocationControl.prototype.onPositionError = function (error) {
   
   //console.log(msg);
   if (!this.suppressErrorMessage) {
-    wspApp.map.panels.message.open({error: msg});
+    this.map.panels.message.open({error: msg});
     this.suppressErrorMessage = true;
   }
   

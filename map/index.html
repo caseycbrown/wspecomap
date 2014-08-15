@@ -49,13 +49,15 @@
         //load data (async requests).  load taxa first
         wspApp.map.requestTaxa();   
         wspApp.map.requestTrees();
+        
    
         
         
         //now add a custom control that jumps to user's location.
         //note that this control won't add itself if html5's navigator.geolocation
         //doesn't exist        
-        var lc = new wsp.LocationControl(wspApp.baseMap);
+        //wspApp.map.addLocationControl();
+        //var lc = new wsp.LocationControl(wspApp.baseMap);
         
       });
          
@@ -170,6 +172,21 @@
         <h3 class="panel-heading">Hey there!</h3>
         
         <label class="error"></label>
+        <button type="button"
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
+        
+      </div><!-- /panel -->
+
+      <div id="settings-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
+        <h3 class="panel-heading">Settings</h3>
+                
+        <label class="panel-descriptor">
+          <input class="location" data-setting="location" type="checkbox" checked="checked">
+          Show my location
+        </label>
+        <label class="panel-descriptor">
+          <input class="minetta" data-setting="minetta" type="checkbox">Show Minetta Creek</label>
+      
         <button type="button"
             class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
         

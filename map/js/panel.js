@@ -7,11 +7,10 @@ wsp.Panel = function (name) {
   this.domPanel = $("#" + name); //returns jquery object
   this.openOpts = null;
   
-  this.blah = name;
-  
   this.domPanel.panel({
     beforeopen: $.proxy(this.onBeforeOpen, this),
     open: $.proxy(this.onOpen, this),
+    beforeclose: $.proxy(this.onBeforeClose, this),
     close: $.proxy(this.onClose, this)
   });
   
@@ -66,6 +65,14 @@ wsp.Panel.prototype.onBeforeOpen = function (event, ui) {
 };
 
 /*
+  Triggered at the start of the process of closing a panel 
+  subclass should override
+*/
+wsp.Panel.prototype.onBeforeClose = function (event, ui) {
+  //override to provide functionality
+};
+
+/*
   Call this method when there is an error from ajax request.
   Makes the assumption that there is a .error label on the panel
 */
@@ -86,6 +93,53 @@ wsp.Panel.prototype.ajaxFail = function (jqXHR, textStatus, errorThrown) {
 */
 wsp.Panel.prototype.setError = function (msg) {
   this.domPanel.find(".error").text(msg);
+}
+
+
+/*inherits from Panel and is used to show settings info*/
+wsp.SettingsPanel = function(name) {
+  wsp.Panel.call(this, name);
+  this.domPanel.find("button.close").click($.proxy(this.close, this));
+  this.domPanel.find(".location").change($.proxy(this.onCheckboxChange, this));
+  this.domPanel.find(".minetta").change($.proxy(this.onCheckboxChange, this));
+};
+
+wsp.SettingsPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+//set "constructor" property as per mozilla developer docs
+wsp.SettingsPanel.prototype.constructor = wsp.SettingsPanel;
+
+wsp.SettingsPanel.prototype.onBeforeOpen = function(event, ui) {
+  console.log("opening settings panel");
+  //retreive settings from storage
+  var sm = wspApp.map.storageManager;
+  var val = sm.get(sm.keys.showLocation);
+
+  if (val !== null) { //if it's null, just leave field as-is
+    this.domPanel.find(".location").prop("checked", (val === "true")).checkboxradio("refresh");
+  }  
+  val = sm.get(sm.keys.showMinetta);
+  if (val !== null) { //if it's null, just leave field as-is
+    this.domPanel.find(".minetta").prop("checked", (val === "true")).checkboxradio("refresh");
+  }
+  
+};
+
+
+wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
+  var ct = $(event.currentTarget);
+  var sm = wspApp.map.storageManager;
+  var checkVal = ct.prop("checked"); //will be a boolean value
+  switch (ct.attr("data-setting")) {
+    case "location":
+      sm.set(sm.keys.showLocation, checkVal);
+      wspApp.map.setUserLocationDisplay(checkVal);
+      break;
+    case "minetta":
+      sm.set(sm.keys.showMinetta, checkVal);
+      wspApp.map.setCreekDisplay(checkVal);
+      break;
+    default: //do nothing
+  }
 }
 
 
