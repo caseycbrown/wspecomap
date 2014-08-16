@@ -36,6 +36,7 @@
         wspApp.baseMap = new google.maps.Map(document.getElementById('map-canvas'),
             { zoom: 17,
               center: new google.maps.LatLng(40.731030, -73.997300),
+              mapTypeId: google.maps.MapTypeId.SATELLITE,
               streetViewControl: false,
               mapTypeControlOptions: {
                 position: google.maps.ControlPosition.TOP_LEFT
@@ -43,6 +44,7 @@
 
 
         });
+        wspApp.baseMap.setTilt(0); //don't want 45 angle
 
         wspApp.map = new wsp.Map();
 
