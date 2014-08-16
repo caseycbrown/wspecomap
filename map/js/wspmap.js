@@ -14,14 +14,23 @@ wsp.Map = function () {
     var sm = that.storageManager;
     var val = sm.get(sm.keys.showLocation);
     //if val is null, go with default, which is true
-    val = (val === null) ? true : (val === "true");
+    val = (val === null) ? true : val;
     that.setUserLocationDisplay(val);
     
     //do the same for minetta creek, though the default is false
     val = sm.get(sm.keys.showMinetta);
-    val = (val === null) ? false : (val === "true");
+    val = (val === null) ? false : val;
     that.setCreekDisplay(val);
 
+    val = sm.get(sm.keys.user);
+    //what will have been saved is the attributes, not functions.  easier to
+    //just create a new user than to bother serializing the function
+    if (val) {
+      that.setUser(new wsp.User({dbUser: {id: val.id,
+        displayName: val.displayName,
+        username: val.username,
+        privileges: val.privileges}}));
+    }
     
   };
 
@@ -38,7 +47,6 @@ wsp.Map = function () {
   this.panels.displayTree = new wsp.DisplayTreePanel("tree-info-panel");
   this.panels.editTree = new wsp.EditTreePanel("tree-edit-panel");
   this.panels.login = new wsp.LoginPanel("login-panel");
-  this.panels.user = new wsp.UserPanel("user-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
   this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
 
@@ -60,20 +68,14 @@ wsp.Map = function () {
     });
   
   $("#user-settings").click($.proxy(function(){
-    if (this.user) {
-    //  wspApp.map.panels.user.open();
-    } else {
-    //  wspApp.map.panels.login.open();
-    }
-    wspApp.map.panels.settings.open();
-    
+    this.panels.settings.open();    
   }, this));
   
   
   this.requestTrees = function () {
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
     var jqxhr = $.ajax({url: this.dataUrl,
-                        data: {verb: "get", noun: "tree", dbhmin: 60, dbhmax: 100},
+                        data: {verb: "get", noun: "tree", dbhmin: 40, dbhmax: 42},
                         dataType: "json",
                         context: this})    
         .done(function(data){
@@ -146,8 +148,10 @@ wsp.Map = function () {
     console.log("need to set creek display to " + displayCreek);
   };
 
-  this.addLocationControl = function() {
-    //var lc = new wsp.LocationControl(wspApp.baseMap);
+  /*Call to update the logged-in user*/
+  this.setUser = function(user) {
+    this.storageManager.set(this.storageManager.keys.user, user);
+    this.user = user;
   };
   
   selfInit();
@@ -159,8 +163,9 @@ wsp.Map = function () {
 wsp.StorageManager = function () {
   //use these keys instead of the same string sprinkled throughout code
   this.keys = {
-    showLocation: "show-location",
-    showMinetta: "show-minetta"
+    showLocation: {name: "show-location"},
+    showMinetta: {name: "show-minetta"},
+    user: {name: "logged-in-user", session: true} //save user in session, not local
     };
 };
 
@@ -168,8 +173,10 @@ wsp.StorageManager = function () {
 example: set(storageManager.keys.showLocation, "true")
 */
 wsp.StorageManager.prototype.set = function(key, obj) {
-  if (localStorage) {
-    localStorage.setItem(key, obj);
+  var storage = (key.session) ? window.sessionStorage : window.localStorage;
+  
+  if (storage) {
+    storage.setItem(key.name, JSON.stringify(obj));
   }
 };
 
@@ -177,9 +184,11 @@ wsp.StorageManager.prototype.set = function(key, obj) {
 */
 wsp.StorageManager.prototype.get = function(key) {
   var obj = null;
-  if (localStorage) {
-    obj = localStorage.getItem(key);
+  var storage = (key.session) ? window.sessionStorage : window.localStorage;
+  if (storage) {
+    obj = JSON.parse(storage.getItem(key.name));
   }
+  
   return obj;
 };
 
@@ -189,17 +198,17 @@ wsp.SymbolManager = function () {
   var symbols_  = {};
   
   /*
-    returns symbol for given taxon and dbh.  
+    returns symbol for given tree based on taxon and dbh.  
     Creates a new symbol if one doesn't already exist
     */
-  this.getSymbol = function(taxonId, dbh) {
+  this.getSymbol = function(tree) {
     //first check to see if we've already stored that taxon
-    var t = symbols_[taxonId] || {};
+    var t = symbols_[tree.taxonId] || {};
     
     //color might be set to null or to 0, but if it's undefined need to look up
     if (t.color === undefined) {
-      symbols_[taxonId] = t;
-      var tax = wspApp.map.taxa.getTaxon(taxonId);
+      symbols_[tree.taxonId] = t;
+      var tax = wspApp.map.taxa.getTaxon(tree.taxonId);
       //taxon may not yet be defined;
       t.color = (tax) ? tax.color : null; //set to a default
       
@@ -209,7 +218,7 @@ wsp.SymbolManager = function () {
   
     //don't need a new symbol for each separate dbh.  group dbh by adjusting
     //it a little.
-    dbh = dbh + 1; //in case of zero, still want to display
+    var dbh = tree.dbh + 1; //in case of zero, still want to display
     dbh = Math.ceil(dbh / 5); //group into intervals.  play with this number
   
     var symbol = t.symbols[dbh]; //may be undefined
@@ -222,7 +231,7 @@ wsp.SymbolManager = function () {
       var c = (t.color === null) ? "black" : "#" + t.color;
       
       symbol = {
-        markers: [], //will store the markers that use symbol
+        trees: [], //will store the trees that use symbol
         path: google.maps.SymbolPath.CIRCLE,
         fillOpacity: fo,
         fillColor: c,
@@ -235,6 +244,11 @@ wsp.SymbolManager = function () {
       t.symbols[dbh] = symbol;
       
     }
+    //TODO: remove tree from symbol.trees if it exists
+    
+    //symbol knows which trees use it in case need to update if symbol changes
+    symbol.trees.push(tree); 
+
     
     return symbol;
     
@@ -267,24 +281,15 @@ wsp.SymbolManager = function () {
           s.fillColor = c;
           s.strokeColor = c;          
           
-          for (i=0; i < s.markers.length; i++) {
-            s.markers[i].setIcon(s);
+          for (i=0; i < s.trees.length; i++) {
+            s.trees[i].marker.setIcon(s);
           }
 
         }
       }
 
-      
-
-      
     }
     
-    //var s = symbols_["test"]["60"];
-    //console.log(s);
-    //s.fillColor = "#00ff00";
-    
-    
-    //console.log(s);
   };
   
 };
@@ -295,10 +300,11 @@ wsp.Tree = function (opts) {
   this.taxonId = opts.taxonId || "unknown";
   this.dbh = opts.dbh || 0 ; //if null, change to 0
   this.position = opts.position;
+  this.isMovable = false;
   
   if (this.position) {
     //must create a marker on the map for the tree
-    var symbol = wspApp.map.symbolManager.getSymbol(this.taxonId, this.dbh);
+    var symbol = wspApp.map.symbolManager.getSymbol(this);
     this.marker = new google.maps.Marker({
       //map: wspApp.baseMap,
       position: this.position,
@@ -310,10 +316,7 @@ wsp.Tree = function (opts) {
       //need to change context later on
       tree: this
     });
-    
-    //symbol knows which markers use it in case need to update if symbol changes
-    symbol.markers.push(this.marker); 
-    
+        
     //TO-DO: change marker stuff - this is just to test clusterer
     wspApp.map.markerClusterer.addMarker(this.marker);
     
@@ -321,15 +324,85 @@ wsp.Tree = function (opts) {
   
   this.title = "Tree: " + this.taxonId; //tmp
   
-  //google.maps.event.addListener(this.marker, 'click', $.proxy(this.updateTreePanel, this));
-  google.maps.event.addListener(this.marker, 'click', function(){    
-    wspApp.map.panels.displayTree.open({base: this.tree});
-    //wspApp.map.openPanel("display-tree", {base: this.tree});
-  });
-  
+  //google.maps.event.addListener(this.marker, 'click', function(){    
+  //  wspApp.map.panels.displayTree.open({base: this.tree});
+  //});
+
+  this.listener = new wsp.TreeListener(this);
   
 };
 
+/*indicates whether a tree can be dragged or not*/
+wsp.Tree.prototype.setMovable = function (isMovable) {
+  if (this.marker) {
+    var icon = (isMovable) ? null : wspApp.map.symbolManager.getSymbol(this);
+    this.isMovable = isMovable;
+    this.marker.setDraggable(isMovable);
+    this.marker.setIcon(icon); //want default marker
+    //then, after it drags, change it back and save it
+  
+  }
+
+};
+
+/*
+  Called when user clicks on a tree's marker or when user let's go of dragged marker
+*/
+wsp.Tree.prototype.onMouseUp = function () {
+  //if not movable, then open display panel
+  //if movable, then save, update (and open?)
+  if (this.isMovable) {
+    this.setMovable(false);
+    var newVals = {};
+    var pos = this.marker.getPosition();
+    newVals.position = {lat: pos.lat(), lng: pos.lng()};
+    this.save(newVals)
+      .fail(function(){
+        //need to move marker back to position
+        this.marker.setPosition(this.position);
+      });
+  } else {
+    wspApp.map.panels.displayTree.open({base: this});
+  }
+};
+/*
+  Called when user taps and holds (long clicks) on a tree's marker
+*/
+wsp.Tree.prototype.onTapHold = function () {
+  this.setMovable(true);
+};
+
+/*Saves current self to database.  returns jqXHR object
+  input parameter is new values to save to - may differ from current values.
+  On success, tree will update self to those values
+*/
+wsp.Tree.prototype.save = function(vals) {
+  vals = vals || {};
+  vals.position = vals.position || {}
+  //dbh = 0 will return false, so special check it.  other vals won't be 0
+  vals.dbh = (vals.dbh === undefined) ? this.dbh : vals.dbh;
+  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+                      data: {verb: "update", noun: "tree",
+                      treeid: this.id,
+                      taxonid: vals.taxonId || this.taxonId,
+                      dbh: vals.dbh || this.dbh,
+                      lat: vals.position.lat || this.position.lat,
+                      lng: vals.position.lng || this.position.lng},
+                      dataType: "json",
+                      context: this})
+    .done(function(data) {
+      //update self to data
+      this.taxonId = data.tree.taxonId;
+      this.dbh = data.tree.dbh;
+      this.position = {lat: data.tree.lat, lng: data.tree.lng};  
+      
+      //symbol may well neet to be changed
+      this.marker.setIcon(wspApp.map.symbolManager.getSymbol(this));
+      
+    });
+  return jqxhr;
+
+};
 
 /*Class representing a taxon.*/
 wsp.Taxon = function (opts) {
@@ -987,3 +1060,56 @@ wsp.Comment = function(manager, opts) {
   };
   
 }; //end of Comment
+
+/*
+  A class that detects a taphold (or longclick).  Adapted from code on stackoverflow
+*/
+wsp.TreeListener = function (tree, opts) {
+  opts = opts || {};
+  var that = this;
+  this.time = opts.time || 1000; //milliseconds
+  this.tree = tree;
+  this.timeoutId = null;
+  this.exceededTime = false;
+  //add listenere
+  google.maps.event.addListener(this.tree.marker, "mousedown", function(e) {
+    that.onMouseDown(e);
+  });
+  google.maps.event.addListener(this.tree.marker, "mouseup", function(e) {
+    that.onMouseUp(e);
+  });
+  google.maps.event.addListener(this.tree.marker, "drag", function(e) {
+    that.onDrag(e);
+  });
+};
+
+wsp.TreeListener.prototype.onMouseDown = function(e) {
+  //clear timeout, then start a new one
+  this.exceededTime = false;
+  clearTimeout(this.timeoutId);  
+  this.timeoutId = setTimeout($.proxy(function() {
+    //if user has privilege to move a tree, can start that process.  Otherwise,
+    //pretend that nothing happened - just treat it as a click
+    var user = wspApp.map.user;
+    if (user && user.hasPrivilege(wsp.UserPrivilege.UPDATE_TREE)) {
+      this.exceededTime = true;
+      this.tree.onTapHold();
+    } else {
+      console.log("timeout, but nothing special for you");
+    }
+  }, this), this.time);
+};
+wsp.TreeListener.prototype.onMouseUp = function(e) {
+  //clear timeout and check if we had a simple click
+  
+  clearTimeout(this.timeoutId);
+  if (!this.exceededTime) {
+    this.tree.onMouseUp();
+    
+  }
+  
+};
+wsp.TreeListener.prototype.onDrag = function(e) {
+  //clear timeout - don't want drag to be part of long click
+  clearTimeout(this.timeoutId);
+};

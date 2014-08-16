@@ -69,7 +69,7 @@ override jqm's default coloring style*/
   cursor: pointer;
 }
 
-.button-wrapper {
+.edit-button-wrapper {
   position: absolute;
   top: 30px;
   right: 30px;

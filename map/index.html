@@ -50,14 +50,6 @@
         wspApp.map.requestTaxa();   
         wspApp.map.requestTrees();
         
-   
-        
-        
-        //now add a custom control that jumps to user's location.
-        //note that this control won't add itself if html5's navigator.geolocation
-        //doesn't exist        
-        //wspApp.map.addLocationControl();
-        //var lc = new wsp.LocationControl(wspApp.baseMap);
         
       });
          
@@ -99,7 +91,7 @@
           <label class="panel-descriptor">Diameter (dbh)</label>
           <div class="diameter panel-data">dbh</div>
 
-          <div class="button-wrapper">
+          <div class="edit-button-wrapper">
             <input type="button" class="edit ui-btn ui-corner-all ui-btn-b ui-mini"
             data-icon="edit" data-iconpos="notext" />
           </div>
@@ -155,19 +147,6 @@
         
       </div><!-- /panel -->
 
-      <div id="user-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
-        <h3 class="display-name panel-heading">Login</h3>
-        
-        <label class="panel-descriptor">Update settings here (eventually)</label>
-        
-        <br>
-        <button type="button" class="logout ui-btn ui-corner-all ui-mini ui-btn-a">
-          Logout</button>
-        <button type="button"
-            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
-        
-      </div><!-- /panel -->
-
       <div id="message-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Hey there!</h3>
         
@@ -179,6 +158,9 @@
 
       <div id="settings-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Settings</h3>
+                
+        <button type="button" class="login ui-btn ui-corner-all ui-mini">
+          login</button>
                 
         <label class="panel-descriptor">
           <input class="location" data-setting="location" type="checkbox" checked="checked">

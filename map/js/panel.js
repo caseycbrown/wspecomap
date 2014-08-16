@@ -100,6 +100,7 @@ wsp.Panel.prototype.setError = function (msg) {
 wsp.SettingsPanel = function(name) {
   wsp.Panel.call(this, name);
   this.domPanel.find("button.close").click($.proxy(this.close, this));
+  this.domPanel.find("button.login").click($.proxy(this.onLoginClick, this));
   this.domPanel.find(".location").change($.proxy(this.onCheckboxChange, this));
   this.domPanel.find(".minetta").change($.proxy(this.onCheckboxChange, this));
 };
@@ -115,12 +116,19 @@ wsp.SettingsPanel.prototype.onBeforeOpen = function(event, ui) {
   var val = sm.get(sm.keys.showLocation);
 
   if (val !== null) { //if it's null, just leave field as-is
-    this.domPanel.find(".location").prop("checked", (val === "true")).checkboxradio("refresh");
+    this.domPanel.find(".location").prop("checked", val).checkboxradio("refresh");
   }  
   val = sm.get(sm.keys.showMinetta);
   if (val !== null) { //if it's null, just leave field as-is
-    this.domPanel.find(".minetta").prop("checked", (val === "true")).checkboxradio("refresh");
+    this.domPanel.find(".minetta").prop("checked", val).checkboxradio("refresh");
   }
+  
+  //also update the text of the login button
+  val = "Login";
+  if (wspApp.map.user) {
+    val = "Logout, " + wspApp.map.user.displayName;
+  }
+  this.domPanel.find("button.login").html(val);
   
 };
 
@@ -142,6 +150,25 @@ wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
   }
 }
 
+/*called to either log in or log out*/
+wsp.SettingsPanel.prototype.onLoginClick = function (event) {
+  if (wspApp.map.user) {
+    //want to logout
+    var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+                        data: {verb: "logout", noun: "user"},                      
+                        dataType: "json",
+                        context: this})    
+      .done(function(data){
+        wspApp.map.setUser(null);
+        this.close();
+      })
+      .fail(this.ajaxFail);
+    
+  } else {
+    //bring to login page
+    wspApp.map.panels.login.open();
+  }
+};
 
 /*inherits from Panel and is used to display information about a tree*/
 wsp.DisplayTreePanel = function(name) {
@@ -155,7 +182,7 @@ wsp.DisplayTreePanel = function(name) {
   //for some reason removing/re-inserting button was leaving icon artifact.
   //I'm assuming this is because of some extras that JQM leaves behind...easiest
   //to wrap button in div and show/hide *that*
-  this.editWrapper = this.domPanel.find(".button-wrapper");
+  this.editWrapper = this.domPanel.find(".edit-button-wrapper");
   
   this.editWrapper.isHidden = false;
   
@@ -277,21 +304,6 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
       sel.append(s);
     }
 
-    
-    
-/*    
-    var obj = wspApp.map.taxa;
-    for (prop in obj) {
-      if (obj.hasOwnProperty(prop)) {
-        taxon = obj[prop];
-        s = "<option value='" + taxon.id + "'";
-        s += (taxon.id === tree.taxonId) ? " selected" : "";
-        s += ">" + taxon.sciName + " | " + taxon.common + "</option>";
-        sel.append(s);  
-      }
-    }
-    
-*/
   }
 
   this.domPanel.find(".diameter").val(tree.dbh);
@@ -309,29 +321,17 @@ wsp.EditTreePanel.prototype.update = function() {
 
   var tree = this.openOpts.base;
   
+  var newVals = {};
   //update tree
-  var newTaxonId = parseInt(this.domPanel.find("select.taxon option:selected").val());
-  var newDbh = parseInt(this.domPanel.find(".diameter").val());
+  newVals.taxonId = parseInt(this.domPanel.find("select.taxon option:selected").val());
+  newVals.dbh = parseInt(this.domPanel.find(".diameter").val());
   
-  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
-                      data: {verb: "update", noun: "tree",
-                      treeid: tree.id,
-                      taxonid: newTaxonId,
-                      dbh: newDbh,
-                      lat: tree.position.lat,
-                      lng: tree.position.lng},
-                      dataType: "json",
-                      context: this})    
-    .done(function(data){
-    
-      //update tree that other panel uses...if this is done before sending the
-      //request, would need to undo it on failure.
-      tree.taxonId = newTaxonId;
-      tree.dbh = newDbh;
-      
-      this.close();
-    })
-    .fail(this.ajaxFail);
+  var that = this; //context will be tree, not this panel, so save this
+  tree.save(newVals)
+  .done(function(data){
+    that.close();
+  })    
+  .fail(that.ajaxFail);
 };
 
 
@@ -443,57 +443,25 @@ wsp.LoginPanel.prototype.login = function() {
                       dataType: "json",
                       context: this})    
     .done(function(data){
-      wspApp.map.user = new wsp.User({dbUser: data.user});
-      //want to switch to user panel
-      wspApp.map.panels.user.open(); //don't pass base
+      wspApp.map.setUser(new wsp.User({dbUser: data.user}));
+      
+      //want to switch to settings panel
+      //wspApp.map.panels.settings.open();
+      this.close();
       
     })
     .fail(this.ajaxFail);
 };
-    
-wsp.UserPanel = function(name) {
-  wsp.Panel.call(this, name);
-
-  //tell what to do when click on update
-  this.domPanel.find("button.logout").click($.proxy(this.logout, this));
-  this.domPanel.find("button.close").click($.proxy(this.close, this));
-  
-};
-
-wsp.UserPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
-//set "constructor" property as per mozilla developer docs
-wsp.UserPanel.prototype.constructor = wsp.UserPanel;
-
-
-wsp.UserPanel.prototype.onOpen = function(event, ui) {
-  var s = "No user logged in";
-  if (wspApp.map.user) {
-    s = wspApp.map.user.displayName;
-  }
-  
-  this.domPanel.find(".display-name").text(s);
-  
-};
-
 
 /*
-  Attempts to log user in
+  want to go back to settings panel
 */
-
-wsp.UserPanel.prototype.logout = function() {
-
-  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
-                      data: {verb: "logout", noun: "user"},                      
-                      dataType: "json",
-                      context: this})    
-    .done(function(data){
-      wspApp.map.user = null;
-      this.close();
-    })
-    .fail(this.ajaxFail);
-  
+wsp.LoginPanel.prototype.onClose = function() {
+  //pass it existing openoptions
+  wspApp.map.panels.settings.open();
 };
 
+   
 
 wsp.MessagePanel = function(name) {
   wsp.Panel.call(this, name);
