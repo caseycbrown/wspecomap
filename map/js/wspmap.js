@@ -75,7 +75,7 @@ wsp.Map = function () {
   this.requestTrees = function () {
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
     var jqxhr = $.ajax({url: this.dataUrl,
-                        data: {verb: "get", noun: "tree", dbhmin: 40, dbhmax: 42},
+                        data: {verb: "get", noun: "tree", dbhmin: 0, dbhmax: 100},
                         dataType: "json",
                         context: this})    
         .done(function(data){
