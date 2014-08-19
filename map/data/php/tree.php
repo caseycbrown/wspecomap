@@ -97,9 +97,26 @@ class Tree {
   /* 
     Adds a tree to database and returns jsondata object
   */
-  public function add(){    
+  public function add($dh){    
     $jd = new JsonData();
-    $jd->set("error", "Add tree functionality not yet implemented");
+  
+    //need to replace any null values with word 'null'
+    $dbh = ($this->dbh_ === null) ? "null" : "'$this->dbh_'";
+    
+    $s = "call add_tree($this->taxonId_, $dbh, $this->lat_, $this->lng_)";
+    
+    $r = $dh->executeQuery($s);
+    
+    if ($r["error"]) {
+      $jd->set("error", "Error attempting to add tree" . "..." . $r["error"]);
+    } else { 
+      //want to grab returned id
+      $curRow = $r["result"]->fetch_assoc(); //should only be one row
+      $this->id_ = (int) $curRow["tree_id"];
+      
+      $jd->set("tree", $this->getAttributes());
+    }
+    
     return $jd;
   }  
   
@@ -132,9 +149,16 @@ class Tree {
   /* 
     Deletes a tree from database and returns jsondata object
   */
-  public function delete(){    
+  public function delete($dh){    
     $jd = new JsonData();
-    $jd->set("error", "Delete tree functionality not yet implemented");
+    
+    $s = "call delete_tree($this->id_)";
+    $r = $dh->executeQuery($s);
+    
+    if ($r["error"]) {
+      $jd->set("error", "Error attempting to delete tree" . "..." . $r["error"]);
+    }//else just return empty json data
+    
     return $jd;
   }
     

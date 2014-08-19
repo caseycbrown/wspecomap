@@ -37,7 +37,7 @@ wsp.Map = function () {
   this.locationControl = null;
   this.symbolManager = new wsp.SymbolManager();
   this.storageManager = new wsp.StorageManager();
-  this.trees = [];
+  //this.trees = [];
   //this.taxa = {}; //want "hashtable" not array
   this.taxa = new wsp.TaxonList(); //want "hashtable" not array
   this.user = null; //set if user logs in
@@ -70,7 +70,43 @@ wsp.Map = function () {
   $("#user-settings").click($.proxy(function(){
     this.panels.settings.open();    
   }, this));
-  
+
+  this.listener = new wsp.TapholdListener(wspApp.baseMap, {context: this});
+  google.maps.event.addListener(this, "taphold", function(e) {
+    //a taphold by a user with privilege allows a tree to be added.
+    //note that we add the tree on the mouseup following the taphold because
+    //adding it in the taphold event caused some funky issues on the ensuing
+    //mouseup (the newly-created marker would receive the mouseup and for some
+    //reason the mouse would be stuck over it until another click would free it)
+    //I suspect this has something to do with timing and google events.  Can
+    //look into it more later when I have more time...for now, the following
+    //mouseup workaround is okay
+    
+    //called when user does a taphold on the map
+    this.hadTap = this.user && this.user.hasPrivilege(wsp.UserPrivilege.ADD_TREE);
+    
+  });
+  google.maps.event.addListener(this, "mouseup", function(e) {
+    //called when user does a taphold on the map
+    
+    if(this.hadTap) {
+      console.log("adding tree on mouse up");
+      var t = new wsp.Tree({
+        position: {lat: e.latLng.lat(), lng: e.latLng.lng()},
+        map: wspApp.baseMap,
+        taxonId: 1, //should be unknown
+        dbh: 0
+      });
+      t.save();
+
+      //this.trees.push(t);
+      t.onMouseUp(); //open info panel
+      
+      
+    }
+    
+    this.hadTap = false;
+  });
   
   this.requestTrees = function () {
     //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
@@ -85,13 +121,15 @@ wsp.Map = function () {
           for (i = 0; i < data.trees.length; i++) {
             tree = data.trees[i];
 
-            this.trees.push(new wsp.Tree({
+            var t = new wsp.Tree({
               position: {lat: tree.lat, lng: tree.lng},
               map: wspApp.baseMap,
               taxonId: tree.taxonId,
               dbh: tree.dbh,
               id: tree.id              
-            }));
+            });
+            
+            //this.trees.push(t);
           }
           
         })
@@ -311,6 +349,7 @@ wsp.Tree = function (opts) {
       title: this.taxonId + " (" + this.dbh + " inches!)",
       //icon: "images/tree-icon-b.png",
       icon: symbol,
+      draggable: false,
       
       //easy way for marker to know about tree when it is clicked on - avoids
       //need to change context later on
@@ -319,16 +358,14 @@ wsp.Tree = function (opts) {
         
     //TO-DO: change marker stuff - this is just to test clusterer
     wspApp.map.markerClusterer.addMarker(this.marker);
-    
+        
   }
   
   this.title = "Tree: " + this.taxonId; //tmp
   
-  //google.maps.event.addListener(this.marker, 'click', function(){    
-  //  wspApp.map.panels.displayTree.open({base: this.tree});
-  //});
-
-  this.listener = new wsp.TreeListener(this);
+  this.listener = new wsp.TapholdListener(this.marker, {context: this});
+  google.maps.event.addListener(this, "taphold", this.onTapHold);
+  google.maps.event.addListener(this, "mouseup", this.onMouseUp);
   
 };
 
@@ -349,6 +386,7 @@ wsp.Tree.prototype.setMovable = function (isMovable) {
   Called when user clicks on a tree's marker or when user let's go of dragged marker
 */
 wsp.Tree.prototype.onMouseUp = function () {
+    
   //if not movable, then open display panel
   //if movable, then save, update (and open?)
   if (this.isMovable) {
@@ -369,7 +407,32 @@ wsp.Tree.prototype.onMouseUp = function () {
   Called when user taps and holds (long clicks) on a tree's marker
 */
 wsp.Tree.prototype.onTapHold = function () {
-  this.setMovable(true);
+  var user = wspApp.map.user;
+  if (!this.isMovable && user && user.hasPrivilege(wsp.UserPrivilege.UPDATE_TREE)) {
+    this.setMovable(true);
+  } else if (this.isMovable && user && user.hasPrivilege(wsp.UserPrivilege.DELETE_TREE)) {
+    //ask if user wants to delete
+    //at this point we have a small issue to contend with, which is that the map
+    //has decided to start dragging the marker, which it will begin doing as soon
+    //as user releases mouse.  can set draggable to false, but doing so at this
+    //point can fix the icon but make the map behave as if it is still dragging
+    //it (the mouse pointer is a closed hand, and it's fixed near the icon as
+    //if it were dragging it, but of course the marker can't move).
+    //one solution would be to delete on a double click (or something other event)
+    //for now, the solution is simply to set the map to null, which seems to
+    //get around the dragging problem.  Then put it back after if user cancels
+    
+    this.marker.setMap(null);
+    
+    if (confirm("Are you sure you wish to delete this tree?")) {
+      this.remove();
+      
+    } else {
+      this.marker.setMap(wspApp.baseMap);
+    }
+  }
+  
+  
 };
 
 /*Saves current self to database.  returns jqXHR object
@@ -381,8 +444,10 @@ wsp.Tree.prototype.save = function(vals) {
   vals.position = vals.position || {}
   //dbh = 0 will return false, so special check it.  other vals won't be 0
   vals.dbh = (vals.dbh === undefined) ? this.dbh : vals.dbh;
+  //if tree doesn't have an id, want to add a new tree
+  var verb = (this.id === -1) ? "add" : "update";
   var jqxhr = $.ajax({url: wspApp.map.dataUrl,
-                      data: {verb: "update", noun: "tree",
+                      data: {verb: verb, noun: "tree",
                       treeid: this.id,
                       taxonid: vals.taxonId || this.taxonId,
                       dbh: vals.dbh || this.dbh,
@@ -392,17 +457,45 @@ wsp.Tree.prototype.save = function(vals) {
                       context: this})
     .done(function(data) {
       //update self to data
+      this.id = data.tree.id;
       this.taxonId = data.tree.taxonId;
       this.dbh = data.tree.dbh;
       this.position = {lat: data.tree.lat, lng: data.tree.lng};  
       
       //symbol may well neet to be changed
       this.marker.setIcon(wspApp.map.symbolManager.getSymbol(this));
+
       
     });
   return jqxhr;
 
 };
+
+
+/*
+  Deletes given tree from database.  "delete" is keyword, so use this instead
+*/
+wsp.Tree.prototype.remove = function () {
+  var user = wspApp.map.user;
+  if (user && user.hasPrivilege(wsp.UserPrivilege.DELETE_TREE)) {
+    $.ajax({url: wspApp.map.dataUrl,
+          data: {verb: "delete", noun: "tree",
+            treeid: this.id},
+          dataType: "json",
+          context: this})    
+    .done(function(data){
+      google.maps.event.clearInstanceListeners(this);
+      this.listener.remove();
+      this.listener = null;
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+      console.log("TODO: display error message for deleted tree!");
+    });
+
+  }
+};
+
+
 
 /*Class representing a taxon.*/
 wsp.Taxon = function (opts) {
@@ -663,7 +756,7 @@ wsp.LocationControl.prototype.setUserLocation = function (opts) {
     //this.accuracyCircle.setMap(this.baseMap);
     
     if (opts.moveMap && this.baseMap) { //basemap may be null, so don't jump
-      this.baseMap.setCenter(opts.position);
+      this.baseMap.panTo(opts.position);
     }
   }
   
@@ -1063,53 +1156,53 @@ wsp.Comment = function(manager, opts) {
 
 /*
   A class that detects a taphold (or longclick).  Adapted from code on stackoverflow
+  object is the item that can be clicked (e.g. marker or map)
+  opts are optional options
 */
-wsp.TreeListener = function (tree, opts) {
-  opts = opts || {};
+wsp.TapholdListener = function (object, opts) {
+  this.opts = opts || {};
+  this.opts.context = opts.context || object; //can change context for triggered events
   var that = this;
   this.time = opts.time || 1000; //milliseconds
-  this.tree = tree;
   this.timeoutId = null;
   this.exceededTime = false;
+  this.object = object;
   //add listenere
-  google.maps.event.addListener(this.tree.marker, "mousedown", function(e) {
+  google.maps.event.addListener(object, "mousedown", function(e) {
     that.onMouseDown(e);
   });
-  google.maps.event.addListener(this.tree.marker, "mouseup", function(e) {
+  google.maps.event.addListener(object, "mouseup", function(e) {
     that.onMouseUp(e);
   });
-  google.maps.event.addListener(this.tree.marker, "drag", function(e) {
+  google.maps.event.addListener(object, "drag", function(e) {
     that.onDrag(e);
   });
+  
 };
 
-wsp.TreeListener.prototype.onMouseDown = function(e) {
-  //clear timeout, then start a new one
+wsp.TapholdListener.prototype.onMouseDown = function(e) {
+ //clear timeout, then start a new one
   this.exceededTime = false;
   clearTimeout(this.timeoutId);  
   this.timeoutId = setTimeout($.proxy(function() {
-    //if user has privilege to move a tree, can start that process.  Otherwise,
-    //pretend that nothing happened - just treat it as a click
-    var user = wspApp.map.user;
-    if (user && user.hasPrivilege(wsp.UserPrivilege.UPDATE_TREE)) {
-      this.exceededTime = true;
-      this.tree.onTapHold();
-    } else {
-      console.log("timeout, but nothing special for you");
-    }
+    this.exceededTime = true;
+    google.maps.event.trigger(this.opts.context, "taphold", e);
   }, this), this.time);
 };
-wsp.TreeListener.prototype.onMouseUp = function(e) {
+wsp.TapholdListener.prototype.onMouseUp = function(e) {
   //clear timeout and check if we had a simple click
-  
   clearTimeout(this.timeoutId);
-  if (!this.exceededTime) {
-    this.tree.onMouseUp();
-    
-  }
+  google.maps.event.trigger(this.opts.context, "mouseup", e);
   
 };
-wsp.TreeListener.prototype.onDrag = function(e) {
+wsp.TapholdListener.prototype.onDrag = function(e) {
   //clear timeout - don't want drag to be part of long click
   clearTimeout(this.timeoutId);
+};
+
+/*clears listeners and tidies up*/
+wsp.TapholdListener.prototype.remove = function () {
+  clearTimeout(this.timeoutId);
+  google.maps.event.clearInstanceListeners(this.object);
+  this.object = null;
 };
