@@ -127,6 +127,10 @@ abstract class UserPrivilege
     const ADD_OBSERVATION = 10;
     const UPDATE_OBSERVATION = 11; //update observation not created by self
     const DELETE_OBSERVATION = 12; //delete observation not created by self
+    const ADD_LAYER = 13;
+    const UPDATE_LAYER = 14;
+    const DELETE_LAYER = 15;
+
     
 }
 

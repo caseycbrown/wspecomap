@@ -44,12 +44,16 @@
         wspApp.baseMap.setTilt(0); //don't want 45 angle
 
         wspApp.map = new wsp.Map();
-
+        wspApp.map.requestInitialData();
+        
         //load data (async requests).  load taxa first
-        wspApp.map.requestTaxa();   
-        wspApp.map.requestTrees();
-        
-        
+        //wspApp.map.requestBasics();   
+        //wspApp.map.requestTrees();
+       /*
+        setTimeout(function(){
+          wspApp.map.requestBasics();   
+        }, 6500);
+        */
       });
          
     </script>
@@ -115,7 +119,12 @@
           
           <label class="panel-descriptor">Diameter (inches)</label>
           <input type="text" class="diameter panel-data">
-          
+
+          <div class="layers">
+            <label class="panel-descriptor">Layers to belong to</label>
+     
+          </div>
+      
           <label class="error"></label>
           
           <button type="button"
@@ -155,6 +164,19 @@
         
       </div><!-- /panel -->
 
+      <div id="layers-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
+        <h3 class="panel-heading">Layer Visibility</h3>
+
+        <div class="layers">
+          <label class="panel-descriptor">Please wait.  Layers not yet loaded...</label></div>
+        
+        <label class="error"></label>
+        <button type="button"
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
+        
+      </div><!-- /panel -->
+
+      
       <div id="settings-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Settings</h3>
                 
@@ -168,6 +190,8 @@
         <label class="panel-descriptor">
           <input class="minetta" data-setting="minetta" type="checkbox">Show Minetta Creek</label>
       
+        <button type="button"
+            class="layers ui-btn ui-corner-all ui-mini">Show/Hide Layers</button>
         <button type="button"
             class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
         

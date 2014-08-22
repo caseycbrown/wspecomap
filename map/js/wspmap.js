@@ -10,36 +10,39 @@ wsp.Map = function () {
        
   var that = this;
   function selfInit() {
-    //set up default visibilities
-    var sm = that.storageManager;
-    var val = sm.get(sm.keys.showLocation);
-    //if val is null, go with default, which is true
-    val = (val === null) ? true : val;
-    that.setUserLocationDisplay(val);
+    //set up default settings.
+    var settings = wsp.Map.Setting;
+    var val = that.getSetting(settings.showLocation);
+    val = (val === null) ? true : val; //show location by default
+    that.setSetting(settings.showLocation, val); //set in case it wasn't
     
     //do the same for minetta creek, though the default is false
-    val = sm.get(sm.keys.showMinetta);
+    val = that.getSetting(settings.showMinetta);
     val = (val === null) ? false : val;
-    that.setCreekDisplay(val);
+    that.setSetting(settings.showMinetta, val);
 
-    val = sm.get(sm.keys.user);
+    val = that.getSetting(settings.user);
     //what will have been saved is the attributes, not functions.  easier to
-    //just create a new user than to bother serializing the function
+    //just create a new user than to bother serializing the functions
     if (val) {
-      that.setUser(new wsp.User({dbUser: {id: val.id,
+      that.user = new wsp.User({dbUser: {id: val.id,
         displayName: val.displayName,
         username: val.username,
-        privileges: val.privileges}}));
+        privileges: val.privileges}});
     }
+    
+    //set visible layers.  by default, turn on only default layer
+    val = that.getSetting(settings.layers) || [1];
+    that.setSetting(settings.layers, val);
     
   };
 
   this.locationControl = null;
   this.symbolManager = new wsp.SymbolManager();
-  this.storageManager = new wsp.StorageManager();
-  //this.trees = [];
-  //this.taxa = {}; //want "hashtable" not array
-  this.taxa = new wsp.TaxonList(); //want "hashtable" not array
+  //this.settings = {};
+  //this.storageManager = new wsp.StorageManager();
+  this.taxa = new wsp.TaxonList();
+  this.layerManager = new wsp.LayerManager();
   this.user = null; //set if user logs in
   
   this.panels = {};
@@ -48,8 +51,14 @@ wsp.Map = function () {
   this.panels.editTree = new wsp.EditTreePanel("tree-edit-panel");
   this.panels.login = new wsp.LoginPanel("login-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
+  this.panels.layers = new wsp.LayersPanel("layers-panel");
   this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
 
+  //layers panel needs to know when layers have arrived from server
+  google.maps.event.addListener(this.layerManager, "layersloaded", function(layers){
+    that.panels.layers.onLayersLoaded(layers);
+  });
+  
   //set up location control this after panels are set up
   this.locationControl = new wsp.LocationControl(this);
 
@@ -90,48 +99,60 @@ wsp.Map = function () {
     //called when user does a taphold on the map
     
     if(this.hadTap) {
-      console.log("adding tree on mouse up");
       var t = new wsp.Tree({
         position: {lat: e.latLng.lat(), lng: e.latLng.lng()},
         map: wspApp.baseMap,
         taxonId: 1, //should be unknown
-        dbh: 0
+        dbh: 0,
+        layers: this.getSetting(wsp.Map.Setting.layers) //belong to currently-visible layers
       });
-      t.save();
+      t.save()
+        .fail(function(jqXHR, textStatus, errorThrown) {
+          wspApp.map.panels.displayTree.ajaxFail(jqXHR, textStatus, errorThrown);
+          wspApp.map.markerClusterer.removeMarker(t.marker);
+          t.remove();
+        });
 
       //this.trees.push(t);
       t.onMouseUp(); //open info panel
-      
       
     }
     
     this.hadTap = false;
   });
   
-  this.requestTrees = function () {
-    //var jqxhr = $.ajax({url: googleDocUrl.replace("[WORKSHEETID]", treeWorksheetId),
+  /*called to get trees, taxon, and layer info to start*/
+  this.requestInitialData = function () {
     var jqxhr = $.ajax({url: this.dataUrl,
-                        data: {verb: "get", noun: "tree", dbhmin: 0, dbhmax: 100},
+                        data: {verb: "get", noun: "initial-data"},
                         dataType: "json",
                         context: this})    
         .done(function(data){
-          var i = 0;
-          var marker  = null;
-          var tree = null;
-          for (i = 0; i < data.trees.length; i++) {
-            tree = data.trees[i];
 
+  
+          //trees should be loaded last because they use taxa and are added to layers
+        
+          this.taxa.onTaxaReceived(data.taxa);                    
+          this.layerManager.onLayersReceived(data.layers);
+
+          var that = this;
+          //now load trees
+          $.each(data.trees, function(index, tree) {
             var t = new wsp.Tree({
               position: {lat: tree.lat, lng: tree.lng},
               map: wspApp.baseMap,
               taxonId: tree.taxonId,
               dbh: tree.dbh,
-              id: tree.id              
+              id: tree.id,
+              layers: tree.layers
             });
             
-            //this.trees.push(t);
-          }
-          
+            that.layerManager.addTree(t);
+          });
+
+          //after trees are loaded, need to set which are visible
+          this.layerManager.setVisibleLayers(wspApp.map.getSetting(wsp.Map.Setting.layers));
+                    
         })
         .fail(function(jqXHR, textStatus, errorThrown) {
           if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
@@ -143,94 +164,214 @@ wsp.Map = function () {
           
         });
     
-  };
-
-  this.requestTaxa = function () {
-    var jqxhr = $.ajax({url: this.dataUrl,
-                        data: {verb: "get", noun: "taxon"},
-                        dataType: "json",
-                        context: this})    
-        .done(function(data){
-
-
-          var i = 0;
-          var t = null;
-          for (i = 0; i < data.taxa.length; i++) {
-            //this.taxa[data.taxa[i].id] = new wsp.Taxon({dbTaxon: data.taxa[i]});
-            t = new wsp.Taxon({dbTaxon: data.taxa[i]});
-            this.taxa.addTaxon(t);
-            this.symbolManager.updateSymbols(t);
-          }
-          
-          this.taxa.sort(); //after all have been added
-        })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-          if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
-            console.log("Error: " + jqXHR.responseJSON.error);
-          } else {
-            console.log("Error: " + errorThrown);
-          }
-                    
-          
-        });
-    
-  };
-
-  /*call to set visibility of user location*/
-  this.setUserLocationDisplay = function(displayUser) {
-    this.locationControl.setVisibility(displayUser);
   };
   
-  /*call to set visibility of Minetta Creek overlay*/
-  this.setCreekDisplay = function(displayCreek) {
-    console.log("need to set creek display to " + displayCreek);
-  };
+  /*
+    returns setting indicated by key
+  */
+  this.getSetting = function (setting) {
+    var obj = null;
+    var storage = (setting.session) ? window.sessionStorage : window.localStorage;
+    if (storage) {
+      obj = JSON.parse(storage.getItem(setting.name));
+    }
+    return obj;
 
-  /*Call to update the logged-in user*/
-  this.setUser = function(user) {
-    this.storageManager.set(this.storageManager.keys.user, user);
-    this.user = user;
+  };
+  
+  /*
+    Saves given object in setting (a wsp.Map.Setting) .
+    stores in storage and may also take additional action
+  */
+  this.setSetting = function (setting, obj) {
+    var storage = (setting.session) ? window.sessionStorage : window.localStorage;
+    
+    if (storage) {
+      storage.setItem(setting.name, JSON.stringify(obj));
+    }
+    //now take additional action to update current state of program
+    switch (setting) {
+      case wsp.Map.Setting.showLocation:
+        this.locationControl.setVisibility(obj);
+        break;
+      case wsp.Map.Setting.showMinetta:
+        console.log("need to set creek display to " + obj);
+        break;
+      case wsp.Map.Setting.user:
+        this.user = obj;
+        break;
+      case wsp.Map.Setting.layers:
+        this.layerManager.setVisibleLayers(obj);
+        break;
+      default:
+        //do nothing
+    }
+    
   };
   
   selfInit();
 }; //wsp.Map
 
-
-/*Gets and sets info from localStorage */
-
-wsp.StorageManager = function () {
-  //use these keys instead of the same string sprinkled throughout code
-  this.keys = {
-    showLocation: {name: "show-location"},
-    showMinetta: {name: "show-minetta"},
-    user: {name: "logged-in-user", session: true} //save user in session, not local
-    };
+/*collection of settings*/
+wsp.Map.Setting = {
+  showLocation: {name: "show-location"},
+  showMinetta: {name: "show-minetta"},
+  user: {name: "logged-in-user", session: true}, //save user in session, not local
+  layers: {name: "visible-layers"} //save the ids that are to be visible
 };
 
-/*saves data to storage
-example: set(storageManager.keys.showLocation, "true")
+
+/*class that lets map interact with layers*/
+wsp.LayerManager = function () {
+  this.layers = {};
+  this.queuedTrees = [];
+};
+
+wsp.LayerManager.prototype.addLayer = function(layer) {
+  this.layers[layer.id] = layer;
+};
+
+
+/*
+  Takes an array of integers representing the ids of each layer that should
+  be visible
 */
-wsp.StorageManager.prototype.set = function(key, obj) {
-  var storage = (key.session) ? window.sessionStorage : window.localStorage;
+wsp.LayerManager.prototype.setVisibleLayers = function(visibleIds) {
+  //simply pass the buck along to each layer
+  $.each(this.layers, function(layerId, layer) {
+    layer.setVisibility(visibleIds);
+  });
   
-  if (storage) {
-    storage.setItem(key.name, JSON.stringify(obj));
+  //may get called before map is fully loaded
+  if (wspApp.map) {
+    wspApp.map.markerClusterer.repaint();
   }
 };
 
-/*gets data from storage
+
+/*
+  called when layers have been received from database
 */
-wsp.StorageManager.prototype.get = function(key) {
-  var obj = null;
-  var storage = (key.session) ? window.sessionStorage : window.localStorage;
-  if (storage) {
-    obj = JSON.parse(storage.getItem(key.name));
+wsp.LayerManager.prototype.onLayersReceived = function(jsonLayers) {  
+  
+  var that = this;
+  $.each(jsonLayers, function(id, layer) {
+    that.addLayer(new wsp.Layer({dbLayer: layer}));
+  });
+    
+  //take all trees waiting to be added, and add them
+  var i = 0;  
+  for (i=0; i < this.queuedTrees.length; i++) {
+    this.parseTree(this.queuedTrees[i], true);
   }
   
-  return obj;
+  //delete queue
+  this.queuedTrees = null;
+  
+  //let any interested parties know that layers have been received
+  google.maps.event.trigger(this, "layersloaded", this.layers);
+
+  //update to whatever layers are visible
+  //this.setVisibleLayers(wspApp.map.getSetting(wsp.Map.Setting.layers));
+  
+};
+
+/*
+  called when trees have been received from database.  At setup all trees
+  are retrieved from database and passed here.  It is the manager's job to sort
+  them into appropriate layers
+*/
+wsp.LayerManager.prototype.addTree = function(tree) {
+  if (this.queuedTrees) {
+    this.queuedTrees.push(tree);
+  } else {
+    this.parseTree(tree, true);
+  }
+};
+
+/*
+  called when a tree has been deleted.  Need to remove from all layers that
+  contain tree
+*/
+wsp.LayerManager.prototype.removeTree = function(tree) {
+  this.parseTree(tree, false);
+};
+
+/*
+  called when a tree's layers have changed.  Need to update which layers it
+  belongs to
+*/
+wsp.LayerManager.prototype.updateTree = function(tree) {
+  //simplest thing to do is first remove from all then add back in
+  this.removeTree(tree);
+  this.addTree(tree);
+  tree.setVisibility(wspApp.map.getSetting(wsp.Map.Setting.layers));
+  wspApp.map.markerClusterer.repaint();
 };
 
 
+
+/*
+  takes a tree and adds or removes it from all layers that contain it or need to
+*/
+wsp.LayerManager.prototype.parseTree = function(tree, isAdd) {
+  var i = 0;
+  var layer = null;
+  for (i=0; i < tree.layers.length; i++) {
+    layer = this.layers[tree.layers[i]];
+    if (layer) {
+      if (isAdd) {
+        layer.addTree(tree);
+      } else {
+        layer.removeTree(tree);
+      }
+    }
+  }
+  
+};
+
+
+
+
+/*object that represents some number of trees that are shown or hidden as a group*/
+wsp.Layer = function (opts) {
+  opts = opts || {};
+  this.id = opts.dbLayer.id || -1;
+  this.name = opts.dbLayer.name || "unknown";
+  this.description = opts.dbLayer.description || "unknown";
+  this.trees = {};
+  this.isVisible = false;
+};
+
+/*adds a tree to layer*/
+wsp.Layer.prototype.addTree = function(tree) {
+  this.trees[tree.id] = tree;  
+};
+
+/*removes a tree from layer*/
+wsp.Layer.prototype.removeTree = function(tree) {
+  if (this.trees[tree.id]) {
+    delete this.trees[tree.id];
+  }
+};
+
+/*
+  display or hide all trees in layer, depending on if this layer's id is
+  contained in visibleIds.  The reason for using visibleIds instead of a boolean
+  is because trees potentially belong to multiple layers and need to make a
+  visibility determination themselves based on visibleIds - they can't be simply
+  turned on or off by this layer.*/
+wsp.Layer.prototype.setVisibility = function (visibleIds) {
+  
+  if (this.isVisible != ($.inArray(this.id, visibleIds) !== -1)) {
+    
+    this.isVisible = !this.isVisible;
+    
+    $.each(this.trees, function(treeId, tree) {
+      tree.setVisibility(visibleIds);
+    }); 
+  }  
+};
 
 wsp.SymbolManager = function () {
   var symbols_  = {};
@@ -242,53 +383,39 @@ wsp.SymbolManager = function () {
   this.getSymbol = function(tree) {
     //first check to see if we've already stored that taxon
     var t = symbols_[tree.taxonId] || {};
-    
-    //color might be set to null or to 0, but if it's undefined need to look up
-    if (t.color === undefined) {
-      symbols_[tree.taxonId] = t;
-      var tax = wspApp.map.taxa.getTaxon(tree.taxonId);
-      //taxon may not yet be defined;
-      t.color = (tax) ? tax.color : null; //set to a default
-      
-    }
-  
+    symbols_[tree.taxonId] = t;
     t.symbols = t.symbols || {};
-  
+    
     //don't need a new symbol for each separate dbh.  group dbh by adjusting
     //it a little.
-    var dbh = tree.dbh + 1; //in case of zero, still want to display
-    dbh = Math.ceil(dbh / 5); //group into intervals.  play with this number
-  
-    var symbol = t.symbols[dbh]; //may be undefined
+    var dbhGroup = tree.dbh + 1; //in case of zero, still want to display
+    dbhGroup = Math.ceil(dbhGroup / 5); //group into intervals.  play with this number
     
-    //add new
+    var symbol = t.symbols[dbhGroup]; //may be undefined
     if (!symbol) {
-      
-      //if color is null, draw a black circle with no fill
-      var fo = (t.color === null) ? 0 : 1;
-      var c = (t.color === null) ? "black" : "#" + t.color;
-      
-      symbol = {
-        trees: [], //will store the trees that use symbol
-        path: google.maps.SymbolPath.CIRCLE,
-        fillOpacity: fo,
-        fillColor: c,
-        strokeOpacity: 1.0,
-        strokeColor: c,
-        strokeWeight: 1.0,
-        scale: dbh + 2
-      };
-
-      t.symbols[dbh] = symbol;
-      
+      symbol = new wsp.Symbol(tree, dbhGroup);
+      t.symbols[dbhGroup] = symbol;
+      t.color = symbol.color;
     }
-    //TODO: remove tree from symbol.trees if it exists
     
-    //symbol knows which trees use it in case need to update if symbol changes
-    symbol.trees.push(tree); 
-
+    symbol.addTree(tree);
     
     return symbol;
+    
+  };
+  
+  /*removes tree from its symbol array*/
+  this.removeTree = function(tree) {
+    //need to first figure out which symbol contains given tree.
+    var symbol = this.getSymbol(tree);
+    symbol.removeTree(tree);
+    
+    //if there are no trees in symbol, can remove it from symbols object
+    if (symbol.trees.length === 0) {
+      console.log("no trees left using symbol");
+      //TODO: remove.  not really a high priority
+    }
+    
     
   };
   
@@ -302,27 +429,16 @@ wsp.SymbolManager = function () {
     //if this taxon has not been used for any symbols, no need to update
     var t = symbols_[taxon.id];
     if (t) {
-      
       t.color = taxon.color;
       
       var syms = t.symbols;
-      var i = 0;
       var s = null;
       var prop = null;
-      var c = null;
       for (prop in syms) {
         if (syms.hasOwnProperty(prop)) {
           s = syms[prop];
+          s.update(taxon.color);
           
-          c = (t.color === null) ? "black" : "#" + t.color;
-          s.fillOpacity = 1;
-          s.fillColor = c;
-          s.strokeColor = c;          
-          
-          for (i=0; i < s.trees.length; i++) {
-            s.trees[i].marker.setIcon(s);
-          }
-
         }
       }
 
@@ -332,23 +448,85 @@ wsp.SymbolManager = function () {
   
 };
 
+/*
+  simple class that knows how to display a given tree
+*/
+
+wsp.Symbol = function (tree, dbhGroup) {
+  this.trees = {};
+  
+  var tax = wspApp.map.taxa.getTaxon(tree.taxonId);
+  //taxon may not yet be defined;
+  this.color = (tax) ? tax.color : null; //set to a default
+  
+  this.dbhGroup = dbhGroup;
+
+  //if color is null, draw a black circle with no fill
+  var fo = (this.color === null) ? 0 : 1;
+  var c = (this.color === null) ? "black" : "#" + this.color;
+  
+  this.markerSymbol = {
+    path: google.maps.SymbolPath.CIRCLE,
+    fillOpacity: fo,
+    fillColor: c,
+    strokeOpacity: 1.0,
+    strokeColor: c,
+    strokeWeight: 1.0,
+    scale: this.dbhGroup + 2
+  };
+
+};
+
+/*functions to add/remove a tree from a symbol allow it to keep track of 
+  which trees use it in case that symbol's appearance is changed*/
+wsp.Symbol.prototype.addTree = function(tree) {
+  this.trees[tree.id] = tree;
+};
+
+wsp.Symbol.prototype.removeTree = function(tree) {
+  if (this.trees[tree.id]) {
+    delete this.trees[tree.id];
+  }
+
+};
+
+/*called if a symbol should update self.  For now, can only update color*/
+wsp.Symbol.prototype.update = function(color) {
+  this.markerSymbol.fillColor = (color === null) ? "black" : "#" + color;
+  this.markerSymbol.strokeColor = this.markerSymbol.fillColor;
+  this.markerSymbol.fillOpacity = (color === null) ? 0 : 1;
+
+  //now update every tree
+  var trees = this.trees;
+  var tid = null;
+  for (tid in trees) {
+    if (trees.hasOwnProperty(tid)) {
+      trees[tid].setSymbol(this);
+    }
+  }
+  
+};
+
+
+
 wsp.Tree = function (opts) {
   opts = opts || {};
   this.id = opts.id || -1;
   this.taxonId = opts.taxonId || "unknown";
+  this.layers = opts.layers || [];
   this.dbh = opts.dbh || 0 ; //if null, change to 0
   this.position = opts.position;
   this.isMovable = false;
-  
+  this.isVisible = false;
+    
   if (this.position) {
     //must create a marker on the map for the tree
-    var symbol = wspApp.map.symbolManager.getSymbol(this);
     this.marker = new google.maps.Marker({
       //map: wspApp.baseMap,
       position: this.position,
       title: this.taxonId + " (" + this.dbh + " inches!)",
       //icon: "images/tree-icon-b.png",
-      icon: symbol,
+      icon: wspApp.map.symbolManager.getSymbol(this).markerSymbol,
       draggable: false,
       
       //easy way for marker to know about tree when it is clicked on - avoids
@@ -356,12 +534,7 @@ wsp.Tree = function (opts) {
       tree: this
     });
         
-    //TO-DO: change marker stuff - this is just to test clusterer
-    wspApp.map.markerClusterer.addMarker(this.marker);
-        
   }
-  
-  this.title = "Tree: " + this.taxonId; //tmp
   
   this.listener = new wsp.TapholdListener(this.marker, {context: this});
   google.maps.event.addListener(this, "taphold", this.onTapHold);
@@ -372,7 +545,7 @@ wsp.Tree = function (opts) {
 /*indicates whether a tree can be dragged or not*/
 wsp.Tree.prototype.setMovable = function (isMovable) {
   if (this.marker) {
-    var icon = (isMovable) ? null : wspApp.map.symbolManager.getSymbol(this);
+    var icon = (isMovable) ? null : wspApp.map.symbolManager.getSymbol(this).markerSymbol;
     this.isMovable = isMovable;
     this.marker.setDraggable(isMovable);
     this.marker.setIcon(icon); //want default marker
@@ -380,6 +553,14 @@ wsp.Tree.prototype.setMovable = function (isMovable) {
   
   }
 
+};
+
+wsp.Tree.prototype.setSymbol = function(symbol) {
+  //dont' want to update marker if it's movable, because that means it is the default
+  //google map icon.  it will query for latest symbol when it is moved and switches back
+  if (this.marker && !this.isMovable) {
+    this.marker.setIcon(symbol.markerSymbol);
+  }
 };
 
 /*
@@ -410,6 +591,7 @@ wsp.Tree.prototype.onTapHold = function () {
   var user = wspApp.map.user;
   if (!this.isMovable && user && user.hasPrivilege(wsp.UserPrivilege.UPDATE_TREE)) {
     this.setMovable(true);
+    
   } else if (this.isMovable && user && user.hasPrivilege(wsp.UserPrivilege.DELETE_TREE)) {
     //ask if user wants to delete
     //at this point we have a small issue to contend with, which is that the map
@@ -421,18 +603,19 @@ wsp.Tree.prototype.onTapHold = function () {
     //one solution would be to delete on a double click (or something other event)
     //for now, the solution is simply to set the map to null, which seems to
     //get around the dragging problem.  Then put it back after if user cancels
-    
-    this.marker.setMap(null);
-    
+
+    wspApp.map.markerClusterer.removeMarker(this.marker); //will set map to null
+
     if (confirm("Are you sure you wish to delete this tree?")) {
       this.remove();
       
     } else {
-      this.marker.setMap(wspApp.baseMap);
+      //didn't mean to delete, so add back in
+      wspApp.map.markerClusterer.addMarker(this.marker);
     }
+
+  
   }
-  
-  
 };
 
 /*Saves current self to database.  returns jqXHR object
@@ -444,13 +627,18 @@ wsp.Tree.prototype.save = function(vals) {
   vals.position = vals.position || {}
   //dbh = 0 will return false, so special check it.  other vals won't be 0
   vals.dbh = (vals.dbh === undefined) ? this.dbh : vals.dbh;
+  
+  //convert array to string
+  vals.layers = (vals.layers === undefined) ? this.layers.toString() : vals.layers.toString();
+  
   //if tree doesn't have an id, want to add a new tree
   var verb = (this.id === -1) ? "add" : "update";
   var jqxhr = $.ajax({url: wspApp.map.dataUrl,
                       data: {verb: verb, noun: "tree",
                       treeid: this.id,
                       taxonid: vals.taxonId || this.taxonId,
-                      dbh: vals.dbh || this.dbh,
+                      dbh: vals.dbh,
+                      layers: vals.layers,
                       lat: vals.position.lat || this.position.lat,
                       lng: vals.position.lng || this.position.lng},
                       dataType: "json",
@@ -460,10 +648,13 @@ wsp.Tree.prototype.save = function(vals) {
       this.id = data.tree.id;
       this.taxonId = data.tree.taxonId;
       this.dbh = data.tree.dbh;
-      this.position = {lat: data.tree.lat, lng: data.tree.lng};  
+      this.layers = data.tree.layers;
+      this.position = {lat: data.tree.lat, lng: data.tree.lng};
       
-      //symbol may well neet to be changed
-      this.marker.setIcon(wspApp.map.symbolManager.getSymbol(this));
+      wspApp.map.layerManager.updateTree(this);
+      
+      //symbol may well need to be changed
+      this.marker.setIcon(wspApp.map.symbolManager.getSymbol(this).markerSymbol);
 
       
     });
@@ -487,12 +678,38 @@ wsp.Tree.prototype.remove = function () {
       google.maps.event.clearInstanceListeners(this);
       this.listener.remove();
       this.listener = null;
+      wspApp.map.symbolManager.removeTree(this);
+      wspApp.map.layerManager.removeTree(this);
     })
     .fail(function(jqXHR, textStatus, errorThrown) {
+      //want to add marker back in
+      wspApp.map.markerClusterer.addMarker(this.marker);
       console.log("TODO: display error message for deleted tree!");
     });
 
   }
+};
+
+/*
+  display or hide tree, depending on if it belongs to a layer in visibleIds
+*/
+wsp.Tree.prototype.setVisibility = function (visibleIds) {
+  //set visible to true of there is any overlap between tree's layers and visibleIds
+  var intersect = $.map(this.layers, function(el){
+    return $.inArray(el, visibleIds) < 0 ? null : el;
+  });
+
+  //if length is greater than 0, means we want to be visible
+  if (this.isVisible != (intersect.length > 0)) {
+    this.isVisible = !this.isVisible;
+        
+    if (this.isVisible) {
+      wspApp.map.markerClusterer.addMarker(this.marker, true);
+    } else {
+      wspApp.map.markerClusterer.removeMarker(this.marker, true);
+    }
+    
+  }  
 };
 
 
@@ -538,9 +755,23 @@ wsp.TaxonList.prototype.addTaxon = function(t, opts) {
   this.dataHash[t.id] = t;
   this.dataArray.push(t);
   
+  //update any symbols that may be using that taxon
+  wspApp.map.symbolManager.updateSymbols(t);
+  
   if (opts.sort) {    
     this.sort();
   }
+};
+
+/*takes json data from database and builds list*/
+wsp.TaxonList.prototype.onTaxaReceived = function (jsonTaxa) {
+
+  var that = this;
+  $.each(jsonTaxa, function(index, taxon) {
+    that.addTaxon(new wsp.Taxon({dbTaxon: taxon}));    
+  });
+
+  this.sort(); //after all have been added
 };
 
 /*

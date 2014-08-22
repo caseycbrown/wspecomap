@@ -21,5 +21,9 @@ values
   (9, 'delete taxon', 'can delete a taxon'),
   (10, 'add observation', 'can add a new observation'),
   (11, 'update observation', 'can update observations created by other users'),
-  (12, 'delete observation', 'can delete obesrvations created by other users')
+  (12, 'delete observation', 'can delete obesrvations created by other users'),
+  (13, 'add layer', 'can add a new layer'),
+  (14, 'update layer', 'can update information about an existing layer'),
+  (15, 'delete layer', 'can delete a layer')
+
 ;

@@ -12,6 +12,7 @@ include_once "./config/config.php";
 include_once "./php/tree.php";
 include_once "./php/taxon.php";
 include_once "./php/observation.php";
+include_once "./php/layer.php";
 include_once "./php/user.php";
 
 
@@ -26,7 +27,7 @@ $jd = new JsonData();
 try {
 
   $dh = new DataHelper();
-  $manager = null; //will be tree, taxon, or user
+  $manager = null;
   $um = new UserManager();
 
   switch ($dh->getParameter("noun")) {
@@ -39,15 +40,51 @@ try {
     case "observation":
       $manager = new ObservationManager();
       break;
+    case "layer":
+      $manager = new LayerManager();
+      break;
     case "user":
       $manager = $um;
+      break;
+    case "initial-data":
+      if ($dh->getParameter("verb") === "get") {
+        //want to return both taxa and layer information.  This facilitiates a
+        //single call instead of two ajax requests when loading map
+        $manager = new LayerManager();
+        $jd = $manager->processRequest($dh);
+        if (!$jd->get("error")) {
+          $manager = new TaxonManager();
+          $taxonInfo = $manager->processRequest($dh);
+          if ($taxonInfo->get("error")){
+            $jd->set("error", $taxonInfo->get("error"));
+          } else {
+            $jd->set("taxa", $taxonInfo->get("taxa"));
+          }
+        }
+        if (!$jd->get("error")) {
+          $manager = new TreeManager();
+          $treeInfo = $manager->processRequest($dh);
+          if ($treeInfo->get("error")){
+            $jd->set("error", $treeInfo->get("error"));
+          } else {
+            $jd->set("trees", $treeInfo->get("trees"));
+          }
+        }
+        //set manager to null so it's not called again
+        $manager = null;
+        
+      } else {
+        throw new Exception("Invalid verb given for basics");
+      }
+      
       break;
     default:
       throw new Exception("Invalid noun given");
   }
   
-  $jd = $manager->processRequest($dh);
-
+  if ($manager) {
+    $jd = $manager->processRequest($dh);
+  }
   
 
 } catch (Exception $e) {

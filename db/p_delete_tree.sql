@@ -10,6 +10,7 @@ create procedure delete_tree (
 begin		
 	
   call delete_observation(null, in_tree_id, null);
+  call delete_tree_layer(in_tree_id, null);
   
   delete from
     tree
