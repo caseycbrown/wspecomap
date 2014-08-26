@@ -53,6 +53,8 @@ wsp.Map = function () {
   this.panels.message = new wsp.MessagePanel("message-panel");
   this.panels.layers = new wsp.LayersPanel("layers-panel");
   this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
+  
+  this.minettaOverlay = new wsp.MinettaOverlay(this.panels.message);
 
   //layers panel needs to know when layers have arrived from server
   google.maps.event.addListener(this.layerManager, "layersloaded", function(layers){
@@ -60,7 +62,7 @@ wsp.Map = function () {
   });
   
   //set up location control this after panels are set up
-  this.locationControl = new wsp.LocationControl(this);
+  this.locationControl = new wsp.LocationControl();
 
   
   //set up marker clusterer
@@ -195,7 +197,7 @@ wsp.Map = function () {
         this.locationControl.setVisibility(obj);
         break;
       case wsp.Map.Setting.showMinetta:
-        console.log("need to set creek display to " + obj);
+        this.minettaOverlay.setVisibility(obj);
         break;
       case wsp.Map.Setting.user:
         this.user = obj;
@@ -522,10 +524,7 @@ wsp.Tree = function (opts) {
   if (this.position) {
     //must create a marker on the map for the tree
     this.marker = new google.maps.Marker({
-      //map: wspApp.baseMap,
       position: this.position,
-      title: this.taxonId + " (" + this.dbh + " inches!)",
-      //icon: "images/tree-icon-b.png",
       icon: wspApp.map.symbolManager.getSymbol(this).markerSymbol,
       draggable: false,
       
@@ -1436,4 +1435,158 @@ wsp.TapholdListener.prototype.remove = function () {
   clearTimeout(this.timeoutId);
   google.maps.event.clearInstanceListeners(this.object);
   this.object = null;
+};
+
+/*object that can show/hide minetta creek*/
+wsp.MinettaOverlay = function (msgPanel) {
+  this.messagePanel = msgPanel;
+  this.centerPoly = null;
+  this.boundaryPoly = null;
+  this.centerCoords = [
+    {lat: 40.73165452479978, lng: -73.99742697483407},
+    {lat: 40.7315478241654, lng: -73.99759089999998},
+    {lat: 40.7315029291734, lng: -73.99769070000002},
+    {lat: 40.7314680108463, lng: -73.99777549999999},
+    {lat: 40.7314380808516, lng: -73.99788030000002},
+    {lat: 40.7313881975272, lng: -73.99795010000003},
+    {lat: 40.7313283375378, lng: -73.99803989999998},
+    {lat: 40.7313033958756, lng: -73.99811970000002},
+    {lat: 40.7312485242187, lng: -73.99820449999999},
+    {lat: 40.731218594224, lng: -73.9982943},
+    {lat: 40.7311786875644, lng: -73.99836909999999},
+    {lat: 40.7311437692373, lng: -73.99846389999999},
+    {lat: 40.7311038625777, lng: -73.99854370000003},
+    {lat: 40.7310689442506, lng: -73.9986285},
+    {lat: 40.7310240492586, lng: -73.9987233},
+    {lat: 40.7309791542665, lng: -73.99882309999998},
+    {lat: 40.7309442359394, lng: -73.99890290000002},
+    {lat: 40.730894352615, lng: -73.9989976},
+    {lat: 40.7308644226203, lng: -73.99908740000001},
+    {lat: 40.73079754176424, lng: -73.99925579017827},
+    {lat: 40.73072391906198, lng: -73.999109663789},
+    {lat: 40.7307796209687, lng: -73.9989976},
+    {lat: 40.7308095509634, lng: -73.9989079},
+    {lat: 40.7308594342878, lng: -73.9988131},
+    {lat: 40.730894352615, lng: -73.99873330000003},
+    {lat: 40.730939247607, lng: -73.99863349999998},
+    {lat: 40.730984142599, lng: -73.99853869999998},
+    {lat: 40.7310190609261, lng: -73.99845390000002},
+    {lat: 40.7310589675857, lng: -73.99837409999998},
+    {lat: 40.7310938859128, lng: -73.99827929999998},
+    {lat: 40.7311337925724, lng: -73.99820449999999},
+    {lat: 40.7311637225671, lng: -73.99811469999997},
+    {lat: 40.731218594224, lng: -73.9980299},
+    {lat: 40.7312435358862, lng: -73.99795010000003},
+    {lat: 40.7313033958756, lng: -73.99786030000001},
+    {lat: 40.7313532792, lng: -73.99779050000001},
+    {lat: 40.7313832091947, lng: -73.99768570000003},
+    {lat: 40.7314181275218, lng: -73.99760090000001},
+    {lat: 40.7314630225139, lng: -73.99750110000002},
+    {lat: 40.73159208082837, lng: -73.99729560059427}
+  ];
+  this.boundaryCoords = [
+    {lat: 40.731864127525284, lng: -73.99785046256562},
+    {lat: 40.7317373807984, lng: -73.99802490000002},
+    {lat: 40.7316974741388, lng: -73.9981047},
+    {lat: 40.731667358271125, lng: -73.99816804232785},
+    {lat: 40.7316176608197, lng: -73.99824439999998},
+    {lat: 40.73158089586968, lng: -73.99832224662703},
+    {lat: 40.7315528124979, lng: -73.998404},
+    {lat: 40.7315079175059, lng: -73.9984988},
+    {lat: 40.7314630225139, lng: -73.99858360000002},
+    {lat: 40.7314231158543, lng: -73.99867840000002},
+    {lat: 40.7313732325298, lng: -73.99876819999997},
+    {lat: 40.7313183608729, lng: -73.99884800000001},
+    {lat: 40.7312734658809, lng: -73.9989577},
+    {lat: 40.7312136058915, lng: -73.99903760000001},
+    {lat: 40.7311587342346, lng: -73.99913730000003},
+    {lat: 40.7311288042399, lng: -73.99923209999997},
+    {lat: 40.7310839092479, lng: -73.99931190000001},
+    {lat: 40.73095799208582, lng: -73.9995852920307},
+    {lat: 40.7306249826628, lng: -73.99891780000002},
+    {lat: 40.7306948193171, lng: -73.9987931},
+    {lat: 40.730749690974, lng: -73.99867840000002},
+    {lat: 40.7307995742985, lng: -73.99856369999998},
+    {lat: 40.7308544459554, lng: -73.99842899999999},
+    {lat: 40.7308993409474, lng: -73.9983492},
+    {lat: 40.7309542126043, lng: -73.99822940000001},
+    {lat: 40.7309891309314, lng: -73.99810969999999},
+    {lat: 40.7310390142559, lng: -73.99798499999997},
+    {lat: 40.7310839092479, lng: -73.99788030000002},
+    {lat: 40.7311288042399, lng: -73.9977556},
+    {lat: 40.7311786875644, lng: -73.99768069999999},
+    {lat: 40.7312335592213, lng: -73.99759589999996},
+    {lat: 40.7312784542133, lng: -73.99750110000002},
+    {lat: 40.7313133725405, lng: -73.99742129999998},
+    {lat: 40.7313632558649, lng: -73.99732660000001},
+    {lat: 40.7314031625245, lng: -73.99723180000001},
+    {lat: 40.731482703206716, lng: -73.99707189814757}
+  ];
+};
+
+/*call to show or hide the overlay*/
+wsp.MinettaOverlay.prototype.setVisibility = function (isVisible) {
+  if (isVisible && (this.centerPoly === null)) {
+    //need to create polygon
+    
+     // Construct the polygon.
+    this.centerPoly = new google.maps.Polygon({
+      clickable: false,
+      editable: false,
+      paths: this.centerCoords,
+      strokeColor: '#0000ff',
+      strokeWeight: 0,      
+      fillColor: '#0000ff',
+      fillOpacity: 0.25
+    });
+
+    this.boundaryPoly = new google.maps.Polygon({
+      clickable: true,
+      editable: false,
+      paths: this.boundaryCoords,
+      strokeColor: '#0000ff',
+      strokeWeight: 0,
+      fillColor: '#0000ff',
+      fillOpacity: 0.15
+    });
+    
+ /*   
+  google.maps.event.addListener(this.boundaryPoly, "dblclick", function(e){
+    console.log("hi there - double click");
+    e.stop();
+    var p = this.getPath();
+    var s = "PRINTING COORDS: \n";
+    
+    p.forEach(function(element, index) {
+      s += "{lat: " + element.lat() + ", lng: " + element.lng() + "},\n";
+      
+    });
+    
+    console.log(s);
+
+  });
+*/
+  var that = this;
+  google.maps.event.addListener(this.boundaryPoly, "click", function(e){
+/*
+    if (e.vertex !== undefined) {
+      var p = this.getPath();
+      p.removeAt(e.vertex);
+    }
+    e.stop();
+*/
+    var s = "This is the approximate path where Minetta Creek once ran.";
+    that.messagePanel.open({error: s});
+
+  });
+
+    
+  }
+  
+  if (this.centerPoly) {
+    var map = (isVisible) ? wspApp.baseMap : null;
+    this.centerPoly.setMap(map);
+    this.boundaryPoly.setMap(map);
+  }
+  
 };
