@@ -83,24 +83,36 @@
 
         <h3 class="panel-heading">About this tree</h3>
         <div class="panel-detail">
-          <label class="panel-descriptor">Common name</label>
-          <div class="common panel-data">c. name</div>
-          
-          <label class="panel-descriptor">Scientific name</label>
-          <a id="tree-data-link" href="https://www.google.com" target="_blank">
-            <label class="scientific panel-data">sci name</label>
-          </a>
-          
-          <label class="panel-descriptor">Diameter (dbh)</label>
-          <div class="diameter panel-data">dbh</div>
-
           <div class="edit-button-wrapper">
             <input type="button" class="edit ui-btn ui-corner-all ui-btn-b ui-mini"
             data-icon="edit" data-iconpos="notext" />
           </div>
+
+        
+          <label class="panel-descriptor">Common name</label>
+          <div class="common panel-data">c. name</div>
+          
+          <label class="panel-descriptor">Scientific name</label>
+          <div class="scientific panel-data">sci name</div>
+          
+          <label class="panel-descriptor">Diameter (dbh)</label>
+          <div class="diameter panel-data">dbh</div>
+          
+          <div data-role="collapsible" data-mini="true" data-collapsed-icon="carat-d"
+            data-expanded-icon="carat-u">
+            <h4>More info</h4>
+            <ul class="link-list" data-role="listview">
+              <li><a href="#" class="usda-plants ui-mini" target="_blank">USDA Plants</a></li>
+              <li><a href="#" class="lbj-npd ui-mini" target="_blank">Native Plant Database</a></li>
+              <li><a href="#" class="cal-photo ui-mini" target="_blank">Cal Photos</a></li>
+              <li><a href="#" class="google-image ui-mini" target="_blank">Google images</a></li>
+              <li><a href="#" class="wikipedia ui-mini" target="_blank">Wikipedia</a></li>
+            </ul>
+          
+          </div>
           
           <label class="error"></label>
-          <a href="#" data-rel="close" class="ui-btn ui-corner-all ui-btn-b ui-mini">
+          <a href="#" data-rel="close" class="ui-btn ui-corner-all ui-btn-a ui-mini">
             Close
           </a>
           

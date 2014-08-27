@@ -41,9 +41,7 @@ label.panel-descriptor {
   margin-bottom: 1px;
 }
 
-/*specifically id the anchor that is a data link so that the style will
-override jqm's default coloring style*/
-.panel-detail, #tree-data-link {
+.panel-detail {
   padding: 0px;
   color: #a8a6a6;
 }

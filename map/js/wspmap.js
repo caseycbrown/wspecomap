@@ -725,43 +725,54 @@ wsp.Taxon = function (opts) {
   
   //now calculate a couple of useful strings
   this.sciName = "*unknown*";
-  this.wikiLink = null;
+  this.links = []; //will hold objects that have link info
   
   //need to have genus at least...species may be null
+  var searchString = "";
+  var usdaSymbol = "";
   if (this.genus) {
     this.sciName = this.genus;
-    this.wikiLink = "https://www.google.com/search?q=" + this.genus;
+    searchString = this.genus;
+    usdaSymbol = this.genus.substring(0,5);
+    
+    //now potentially add species - won't have species without genus
+    if (this.species) {
+      this.sciName += " " + this.species;
+      searchString += "+" + this.species;
+      usdaSymbol = this.genus.substring(0,2) + this.species.substring(0,2);
+    }
+    
+    usdaSymbol = usdaSymbol.toUpperCase();
+
+    //links need to have a name, which must match the class of the anchor
+    //that uses the link in the tree info panel
+    this.links.push({name: "usda-plants",
+      url: "http://plants.usda.gov/core/profile?symbol=" + usdaSymbol});
+    this.links.push({name: "lbj-npd",
+      url: "http://www.wildflower.org/plants/result.php?id_plant=" + usdaSymbol});
+    this.links.push({name: "google-image",
+      url: "https://www.google.com/images?q=" + searchString});
+    this.links.push({name: "cal-photo",
+      url: "http://calphotos.berkeley.edu/cgi/img_query?rel-taxon=contains&where-taxon=" +
+        searchString});
+    this.links.push({name: "wikipedia",
+      url: "http://en.wikipedia.org/wiki/" + searchString.replace("+", "_")});
+    
     
     /*some other potential link sources
     http://www.missouribotanicalgarden.org/PlantFinder/PlantFinderDetails.aspx?kempercode=j170
+      * would need to look up kemper codes somewhere
     
     Lady Bird Johnson Native Plant Database
-    http://www.wildflower.org/plants/result.php?id_plant=ACRU
-    
-    cal photos
-    http://calphotos.berkeley.edu/cgi/img_query?query_src=photos_index&where-taxon=Acer+rubrum
+    http://www.wildflower.org/gallery/species.php?id_plant=QUAL
+      * images
     
     silvics manual
     http://www.na.fs.fed.us/spfo/pubs/silvics_manual/volume_2/acer/rubrum.htm
-    
-    usda plants database
-    http://plants.usda.gov/core/profile?symbol=ACRU
-    
-    google image search
-    https://www.google.com/search?q=acer+rubrum&tbm=isch
-    https://www.google.com/images?q=acer%20rubrum
-    
-    wikipedia
-    http://en.wikipedia.org/wiki/Acer_rubrum
+      * need to differentiate between conifers and hardwoods
     
     */
     
-    
-    //now potentially add species
-    if (this.species) {
-      this.sciName += " " + this.species;
-      this.wikiLink += "+" + this.species;
-    }
   }
   
 };

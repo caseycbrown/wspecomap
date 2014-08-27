@@ -200,7 +200,16 @@ wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   this.domPanel.find(".scientific").text(taxon.sciName);
   this.domPanel.find(".common").text(taxon.common);
   this.domPanel.find(".diameter").text(tree.dbh + dbhUnit);
-  this.domPanel.find("#tree-data-link").attr("href", taxon.wikiLink);
+  
+  var that = this;
+  //need to clear links because it's possible a tree will be opened and not
+  //have a link for a particular resource...don't want to use the previous tree's
+  //link in that case
+  this.domPanel.find(".link-list a").attr("href", "#");
+  
+  $.each(taxon.links, function(index, link) {
+    that.domPanel.find("." + link.name).attr("href", link.url);
+  });
 
   this.setError(null);//clear any error msg from previous time
   
