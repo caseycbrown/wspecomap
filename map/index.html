@@ -43,6 +43,10 @@
         });
         wspApp.baseMap.setTilt(0); //don't want 45 angle
 
+        wspApp.baseMap.overlayMapTypes.insertAt(0,
+          new wsp.TransparentMapType(new google.maps.Size(4096, 4096)));
+
+        
         wspApp.map = new wsp.Map();
         wspApp.map.requestInitialData();
         

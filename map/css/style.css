@@ -98,3 +98,10 @@ label.panel-descriptor {
 .comment-edit .comments{
   font-size: small;
 }
+
+.custom-tile {
+  height: 4096px;
+  width: 4096px;
+  background-color: white;
+  opacity: .1;
+}

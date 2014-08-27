@@ -1627,3 +1627,16 @@ wsp.MinettaOverlay.prototype.setVisibility = function (isVisible) {
   }
   
 };
+
+
+wsp.TransparentMapType = function (tileSize) {
+  this.tileSize = tileSize;
+}
+
+wsp.TransparentMapType.prototype.getTile = function(coord, zoom, ownerDocument) {  
+
+  var div = ownerDocument.createElement('div');
+  div.className = "custom-tile";
+  return div;
+
+};
