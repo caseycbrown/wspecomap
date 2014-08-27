@@ -731,6 +731,32 @@ wsp.Taxon = function (opts) {
   if (this.genus) {
     this.sciName = this.genus;
     this.wikiLink = "https://www.google.com/search?q=" + this.genus;
+    
+    /*some other potential link sources
+    http://www.missouribotanicalgarden.org/PlantFinder/PlantFinderDetails.aspx?kempercode=j170
+    
+    Lady Bird Johnson Native Plant Database
+    http://www.wildflower.org/plants/result.php?id_plant=ACRU
+    
+    cal photos
+    http://calphotos.berkeley.edu/cgi/img_query?query_src=photos_index&where-taxon=Acer+rubrum
+    
+    silvics manual
+    http://www.na.fs.fed.us/spfo/pubs/silvics_manual/volume_2/acer/rubrum.htm
+    
+    usda plants database
+    http://plants.usda.gov/core/profile?symbol=ACRU
+    
+    google image search
+    https://www.google.com/search?q=acer+rubrum&tbm=isch
+    https://www.google.com/images?q=acer%20rubrum
+    
+    wikipedia
+    http://en.wikipedia.org/wiki/Acer_rubrum
+    
+    */
+    
+    
     //now potentially add species
     if (this.species) {
       this.sciName += " " + this.species;
