@@ -730,6 +730,8 @@ wsp.Taxon = function (opts) {
   //need to have genus at least...species may be null
   var searchString = "";
   var usdaSymbol = "";
+  var ufSymbol = "#";
+  
   if (this.genus) {
     this.sciName = this.genus;
     searchString = this.genus;
@@ -740,6 +742,10 @@ wsp.Taxon = function (opts) {
       this.sciName += " " + this.species;
       searchString += "+" + this.species;
       usdaSymbol = this.genus.substring(0,2) + this.species.substring(0,2);
+      
+      //the uf horticulture listing has varieties differentiated starting with
+      //letter "a" then "b", "c", etc.  Just use "a" for our purposes
+      ufSymbol = this.genus.substring(0,3) + this.species.substring(0,3) + "a.pdf";
     }
     
     usdaSymbol = usdaSymbol.toUpperCase();
@@ -748,16 +754,18 @@ wsp.Taxon = function (opts) {
     //that uses the link in the tree info panel
     this.links.push({name: "usda-plants",
       url: "http://plants.usda.gov/core/profile?symbol=" + usdaSymbol});
-    this.links.push({name: "lbj-npd",
-      url: "http://www.wildflower.org/plants/result.php?id_plant=" + usdaSymbol});
     this.links.push({name: "google-image",
       url: "https://www.google.com/images?q=" + searchString});
-    this.links.push({name: "cal-photo",
-      url: "http://calphotos.berkeley.edu/cgi/img_query?rel-taxon=contains&where-taxon=" +
-        searchString});
     this.links.push({name: "wikipedia",
       url: "http://en.wikipedia.org/wiki/" + searchString.replace("+", "_")});
-    
+    //this is same link for all species
+    this.links.push({name: "nyc-leaf-key",
+      url: "http://www.nycgovparks.org/sub_your_park/trees_greenstreets/treescount/" +
+        "2005_Census_Leaf_Key_Final.pdf"});
+    //a pdf download
+    this.links.push({name: "uf-hort",
+      url: "http://hort.ifas.ufl.edu/database/documents/pdf/tree_fact_sheets/" +
+        ufSymbol});
     
     /*some other potential link sources
     http://www.missouribotanicalgarden.org/PlantFinder/PlantFinderDetails.aspx?kempercode=j170
@@ -765,8 +773,16 @@ wsp.Taxon = function (opts) {
     
     Lady Bird Johnson Native Plant Database
     http://www.wildflower.org/gallery/species.php?id_plant=QUAL
-      * images
+    this.links.push({name: "lbj-npd",
+      url: "http://www.wildflower.org/plants/result.php?id_plant=" + usdaSymbol});
+
     
+      * images
+    this.links.push({name: "cal-photo",
+      url: "http://calphotos.berkeley.edu/cgi/img_query?rel-taxon=contains&where-taxon=" +
+        searchString});
+
+      
     silvics manual
     http://www.na.fs.fed.us/spfo/pubs/silvics_manual/volume_2/acer/rubrum.htm
       * need to differentiate between conifers and hardwoods
