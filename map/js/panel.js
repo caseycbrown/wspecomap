@@ -101,12 +101,10 @@ wsp.SettingsPanel = function(name) {
   wsp.Panel.call(this, name);
   this.domPanel.find("button.close").click($.proxy(this.close, this));
   this.domPanel.find("button.login").click($.proxy(this.onLoginClick, this));
-  this.domPanel.find("button.layers").click(function(){
-    wspApp.map.panels.layers.open();
-  });
 
   this.domPanel.find(".location").change($.proxy(this.onCheckboxChange, this));
   this.domPanel.find(".minetta").change($.proxy(this.onCheckboxChange, this));
+  this.domPanel.find(".default-layer").change($.proxy(this.onCheckboxChange, this));
 };
 
 wsp.SettingsPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
@@ -120,6 +118,13 @@ wsp.SettingsPanel.prototype.onBeforeOpen = function(event, ui) {
   
   val = wspApp.map.getSetting(wsp.Map.Setting.showMinetta);
   this.domPanel.find(".minetta").prop("checked", val).checkboxradio("refresh");
+  
+  //for default layer, need to look to see if layer 1 is displayed
+  val = wspApp.map.getSetting(wsp.Map.Setting.layers);
+  this.domPanel.find(".default-layer")
+    .prop("checked", ($.inArray(wspApp.constants.DEFAULT_LAYER_ID, val) !== -1))
+    .attr("data-layer-id", wspApp.constants.DEFAULT_LAYER_ID)
+    .checkboxradio("refresh");
   
   //also update the text of the login button
   val = "Login";
@@ -141,6 +146,21 @@ wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
     case "minetta":
       wspApp.map.setSetting(wsp.Map.Setting.showMinetta, checkVal);
       break;
+
+    case "layer":
+      //go through all checkboxes (including default layer), compile array, and save it
+      var visibleIds = [];
+      this.domPanel.find("input.layer").each(function(index, element) {
+        //this keyword refers to the input
+        if ($(element).prop("checked")) {
+          visibleIds.push(parseInt($(element).attr("data-layer-id")));
+        }
+      });
+
+      wspApp.map.setSetting(wsp.Map.Setting.layers, visibleIds);
+      break;
+    
+    
     default: //do nothing
   }
 }
@@ -164,6 +184,44 @@ wsp.SettingsPanel.prototype.onLoginClick = function (event) {
     wspApp.map.panels.login.open();
   }
 };
+
+/*called when map has loaded layers*/
+wsp.SettingsPanel.prototype.onLayersLoaded = function(layers) {
+  //layers will be 0 or more length array of wsp.Layers
+  var i = 0;
+  var layerHolder = this.domPanel.find(".tree-layers");
+  var label = null;
+  var input = null;
+  var that = this;
+  var visibleIds = wspApp.map.getSetting(wsp.Map.Setting.layers);
+  
+  layerHolder.empty();
+  
+  $.each(layers, function(layerId, layer) {
+    //want to add a checkbox for each layer that is not default
+    if (layer.id !== wspApp.constants.DEFAULT_LAYER_ID) {
+      //now add checkboxes for each layer
+      label = $("<label></label>")
+        .addClass("panel-descriptor")
+        .text(layer.name);
+      input = $("<input>")
+        .addClass("layer")
+        .attr("data-layer-id", layer.id)
+        .attr("data-setting", "layer")
+        .prop("type", "checkbox")
+        .prop("checked", ($.inArray(layer.id, visibleIds) !== -1))
+        .change($.proxy(that.onCheckboxChange, that));
+        
+      label.prepend(input);
+      layerHolder.append($("<li></li>").append(label));
+      
+      input.checkboxradio().checkboxradio("refresh");//init/refresh
+    }
+  });
+  
+};
+
+
 
 /*inherits from Panel and is used to display information about a tree*/
 wsp.DisplayTreePanel = function(name) {
@@ -553,71 +611,4 @@ wsp.MessagePanel.prototype.onBeforeOpen = function(event, ui) {
   
   this.setError(s);
   
-};
-
-
-wsp.LayersPanel = function(name) {
-  wsp.Panel.call(this, name);
-
-  //tell what to do when click on update
-  this.domPanel.find("button.close").click($.proxy(this.close, this));
-  
-};
-
-wsp.LayersPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
-//set "constructor" property as per mozilla developer docs
-wsp.LayersPanel.prototype.constructor = wsp.LayersPanel;
-
-
-/*called when map has loaded layers*/
-wsp.LayersPanel.prototype.onLayersLoaded = function(layers) {
-  //layers will be 0 or more length array of wsp.Layers
-  var i = 0;
-  var layerHolder = this.domPanel.find(".layers");
-  var label = null;
-  var input = null;
-  var that = this;
-  var visibleIds = wspApp.map.getSetting(wsp.Map.Setting.layers);
-  
-  layerHolder.empty();
-  
-  $.each(layers, function(layerId, layer) {
-    //now add checkboxes for each layer
-    label = $("<label></label>")
-      .addClass("panel-descriptor")
-      .text(layer.name);
-    input = $("<input>")
-      .addClass("layer")
-      .attr("data-layer-id", layer.id)
-      .prop("type", "checkbox")
-      .prop("checked", ($.inArray(layer.id, visibleIds) !== -1))
-      .change($.proxy(that.onCheckboxChange, that));
-      
-    label.prepend(input);
-    layerHolder.append(label);
-    
-    input.checkboxradio().checkboxradio("refresh");//init/refresh
-
-  });
-  
-};
-
-/*called when one of the checkboxes has changed*/
-wsp.LayersPanel.prototype.onCheckboxChange = function (event) {
-  //go through all checkboxes, compile array, and save it
-  var visibleIds = [];
-  this.domPanel.find("input.layer").each(function(index, element) {
-    //this keyword refers to the input
-    if ($(element).prop("checked")) {
-      visibleIds.push(parseInt($(element).attr("data-layer-id")));
-    }
-  });
-
-  wspApp.map.setSetting(wsp.Map.Setting.layers, visibleIds);
-  
-}
-
-
-wsp.LayersPanel.prototype.onClose = function() {
-  wspApp.map.panels.settings.open();
 };

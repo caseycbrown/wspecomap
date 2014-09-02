@@ -32,7 +32,8 @@ wsp.Map = function () {
     }
     
     //set visible layers.  by default, turn on only default layer
-    val = that.getSetting(settings.layers) || [1];
+    val = that.getSetting(settings.layers) || [wspApp.constants.DEFAULT_LAYER_ID];
+    
     that.setSetting(settings.layers, val);
     
   };
@@ -51,14 +52,13 @@ wsp.Map = function () {
   this.panels.editTree = new wsp.EditTreePanel("tree-edit-panel");
   this.panels.login = new wsp.LoginPanel("login-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
-  this.panels.layers = new wsp.LayersPanel("layers-panel");
   this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
   
   this.minettaOverlay = new wsp.MinettaOverlay(this.panels.message);
 
-  //layers panel needs to know when layers have arrived from server
+  //settings panel needs to know when layers have arrived from server
   google.maps.event.addListener(this.layerManager, "layersloaded", function(layers){
-    that.panels.layers.onLayersLoaded(layers);
+    that.panels.settings.onLayersLoaded(layers);
   });
   
   //set up location control this after panels are set up

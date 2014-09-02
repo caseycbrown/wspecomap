@@ -46,16 +46,18 @@
         wspApp.baseMap.overlayMapTypes.insertAt(0,
           new wsp.TransparentMapType(new google.maps.Size(4096, 4096)));
 
+          
+        //this is unlikely to change in database, but in case it does, it's
+        //simpler to change here than in several places.
+        wspApp.constants = {
+          DEFAULT_LAYER_ID: 1
+        };
         
         wspApp.map = new wsp.Map();
         wspApp.map.requestInitialData();
-        
-        //load data (async requests).  load taxa first
-        //wspApp.map.requestBasics();   
-        //wspApp.map.requestTrees();
-       /*
+        /*
         setTimeout(function(){
-          wspApp.map.requestBasics();   
+          wspApp.map.requestInitialData();   
         }, 6500);
         */
       });
@@ -185,19 +187,6 @@
             class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
         
       </div><!-- /panel -->
-
-      <div id="layers-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
-        <h3 class="panel-heading">Layer Visibility</h3>
-
-        <div class="layers">
-          <label class="panel-descriptor">Please wait.  Layers not yet loaded...</label></div>
-        
-        <label class="error"></label>
-        <button type="button"
-            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
-        
-      </div><!-- /panel -->
-
       
       <div id="settings-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Settings</h3>
@@ -206,14 +195,27 @@
           login</button>
                 
         <label class="panel-descriptor">
-          <input class="location" data-setting="location" type="checkbox" checked="checked">
-          Show my location
+          <input class="location" data-setting="location" type="checkbox">
+          I am here
         </label>
         <label class="panel-descriptor">
-          <input class="minetta" data-setting="minetta" type="checkbox">Show Minetta Creek</label>
-      
-        <button type="button"
-            class="layers ui-btn ui-corner-all ui-mini">Show/Hide Layers</button>
+          <input class="minetta" data-setting="minetta" type="checkbox">
+          Follow Minetta Creek
+        </label>
+        <label class="panel-descriptor">
+          <input class="default-layer layer" data-setting="layer" type="checkbox">
+          Park Trees
+        </label>
+
+        <div data-role="collapsible" data-mini="true" data-collapsed-icon="carat-d"
+          data-expanded-icon="carat-u">
+          <h4>Additional Tree Layers</h4>
+          <ul class="tree-layers" data-role="listview" data-inset="true">
+            <li>Loading layers...please wait</li>
+          </ul>
+        
+        </div>
+
         <button type="button"
             class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
         
