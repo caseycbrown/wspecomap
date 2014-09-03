@@ -30,6 +30,7 @@ wsp.Map = function () {
         username: val.username,
         privileges: val.privileges}});
     }
+    that.optionMenu.onLoginChange(that.user); //update menu
     
     //set visible layers.  by default, turn on only default layer
     val = that.getSetting(settings.layers) || [wspApp.constants.DEFAULT_LAYER_ID];
@@ -38,6 +39,8 @@ wsp.Map = function () {
     
   };
 
+  
+  
   this.locationControl = null;
   this.symbolManager = new wsp.SymbolManager();
   //this.settings = {};
@@ -53,6 +56,8 @@ wsp.Map = function () {
   this.panels.login = new wsp.LoginPanel("login-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
   this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
+  
+  this.optionMenu = new wsp.OptionMenu(this.panels.login);
   
   this.minettaOverlay = new wsp.MinettaOverlay(this.panels.message);
 
@@ -78,10 +83,7 @@ wsp.Map = function () {
       ]
     });
   
-  $("#user-settings").click($.proxy(function(){
-    this.panels.settings.open();    
-  }, this));
-
+    
   this.listener = new wsp.TapholdListener(wspApp.baseMap, {context: this});
   google.maps.event.addListener(this, "taphold", function(e) {
     //a taphold by a user with privilege allows a tree to be added.
@@ -201,6 +203,7 @@ wsp.Map = function () {
         break;
       case wsp.Map.Setting.user:
         this.user = obj;
+        this.optionMenu.onLoginChange(this.user);
         break;
       case wsp.Map.Setting.layers:
         this.layerManager.setVisibleLayers(obj);

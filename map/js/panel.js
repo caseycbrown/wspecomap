@@ -2,6 +2,56 @@
 /*global  wsp, google, console*/
 "use strict";
 
+/*
+  Provides some functionality for setting options
+*/
+wsp.OptionMenu = function(loginPanel) {
+  this.domMenu = $("#option-menu");
+  
+  //set up event handler
+  this.domMenu.find(".option").click($.proxy(this.onMenuOptionClick, this));
+  
+};
+
+wsp.OptionMenu.prototype.onMenuOptionClick = function (event) {
+  //first thing to do is close menu
+  this.domMenu.popup("close");
+  
+  switch ($(event.currentTarget).attr("data-option")) {
+    case "login":
+      if (wspApp.map.user) {
+        wspApp.map.panels.login.logout();
+      } else {
+        wspApp.map.panels.login.open();
+      }
+      
+      break;
+    case "settings":
+      wspApp.map.panels.settings.open();
+      break;
+    default:
+      //shouldn't get here
+  }
+  
+};
+
+/*called when a user logs in or out*/
+wsp.OptionMenu.prototype.onLoginChange = function(user) {
+  console.log("calling on login change.  user is " + user);
+  var s = "Login";
+  if (user) {
+    s = "Logout, " + user.displayName;
+  }
+  this.domMenu.find(".login").html(s);
+  //this.domMenu.find(".login").html(s).button().button("refresh");
+  //this.domMenu.popup("refresh");
+};
+
+
+
+
+
+
 /*Panel is a class that displays info to user.  */
 wsp.Panel = function (name) {
   this.domPanel = $("#" + name); //returns jquery object
@@ -561,6 +611,21 @@ wsp.LoginPanel.prototype.onBeforeOpen = function(event, ui) {
 };
 
 
+/*attempt to log user out */
+wsp.LoginPanel.prototype.logout = function() {
+
+  //want to logout
+  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+                      data: {verb: "logout", noun: "user"},                      
+                      dataType: "json",
+                      context: this})    
+    .done(function(data){
+      wspApp.map.setSetting(wsp.Map.Setting.user, null);
+    })
+    .fail(this.ajaxFail);
+      
+};
+
 /*
   Attempts to log user in
 */
@@ -573,8 +638,9 @@ wsp.LoginPanel.prototype.login = function() {
                       dataType: "json",
                       context: this})    
     .done(function(data){
-      wspApp.map.setSetting(wsp.Map.Setting.user, new wsp.User({dbUser: data.user}));
-      
+      var user = new wsp.User({dbUser: data.user});
+      wspApp.map.setSetting(wsp.Map.Setting.user, user);
+            
       //want to switch to settings panel
       //wspApp.map.panels.settings.open();
       this.close();
@@ -582,15 +648,6 @@ wsp.LoginPanel.prototype.login = function() {
     })
     .fail(this.ajaxFail);
 };
-
-/*
-  want to go back to settings panel
-*/
-wsp.LoginPanel.prototype.onClose = function() {
-  //pass it existing openoptions
-  wspApp.map.panels.settings.open();
-};
-
    
 
 wsp.MessagePanel = function(name) {

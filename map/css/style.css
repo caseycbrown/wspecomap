@@ -11,14 +11,14 @@
 }
 
 #map-page .ui-header {
-  height: 40px;
-  opacity: .3;
+  height: 44px;
+  opacity: .75;
 }
 
 /*this is the map canvas*/
 #map-page .ui-content {
   position: absolute;
-  top: 40px;
+  top: 44px;
   bottom: 0px;
   width: 100%;
   padding: 0px;

@@ -67,7 +67,7 @@
   <body>
         
     <div data-url="map-page" data-role="page" id="map-page" data-title="WSP">
-    
+    <!--
       <div data-role="header" data-position="fixed">
           <h1>WSP Eco Map</h1>
           <button id="user-settings"
@@ -75,6 +75,28 @@
             type="button"
             >Options</button>
       </div><!-- /header -->
+      
+      
+      <div data-role="header" data-position="fixed">
+        <h1>WSP Eco Map</h1>
+        
+        <a href="#map-about" class="ui-btn-left" data-role="button" data-inline="true">About</a>
+
+        <a href="#option-menu" class="ui-btn-right" data-rel="popup" data-role="button"
+          data-inline="true" data-icon="gear" data-iconpos="left">Options</a>
+        
+        <div data-role="popup" id="option-menu">
+          <ul data-role="listview" data-inset="true" style="min-width:210px;">
+            <li><a href="#" class="option login" data-option="login">Login</a></li>
+            <li><a href="#" class="option" data-option="settings">Settings</a></li>
+            <li><a href="#map-about">About</a></li>
+          </ul>
+        </div>
+                
+      
+      </div>
+      
+      
 
       <div role="main" class="ui-content">
         <!--
@@ -191,9 +213,6 @@
       <div id="settings-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Settings</h3>
                 
-        <button type="button" class="login ui-btn ui-corner-all ui-mini">
-          login</button>
-                
         <label class="panel-descriptor">
           <input class="location" data-setting="location" type="checkbox">
           I am here
@@ -243,7 +262,21 @@
       </div><!-- /panel -->
 
     </div>
-      
+
+
+
+    <div data-role="page" id="map-about" data-title="WSP - About">
+
+      <div data-role="header" data-position="fixed" data-add-back-btn="true">
+        <h1>About WSP Eco Map</h1>        
+      </div>
+
+      <div data-role="content">
+        <p>Placeholder text</p>
+      </div>
+
+    </div>
+    
     
   </body>
 </html>
