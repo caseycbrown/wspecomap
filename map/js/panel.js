@@ -37,20 +37,12 @@ wsp.OptionMenu.prototype.onMenuOptionClick = function (event) {
 
 /*called when a user logs in or out*/
 wsp.OptionMenu.prototype.onLoginChange = function(user) {
-  console.log("calling on login change.  user is " + user);
-  var s = "Login";
+  var s = "Login / Sign up";
   if (user) {
     s = "Logout, " + user.displayName;
   }
   this.domMenu.find(".login").html(s);
-  //this.domMenu.find(".login").html(s).button().button("refresh");
-  //this.domMenu.popup("refresh");
 };
-
-
-
-
-
 
 /*Panel is a class that displays info to user.  */
 wsp.Panel = function (name) {
@@ -63,6 +55,13 @@ wsp.Panel = function (name) {
     beforeclose: $.proxy(this.onBeforeClose, this),
     close: $.proxy(this.onClose, this)
   });
+  
+  /*Generic panel attempts to wire a close and a submit button.  These might
+  be labeled differently on forms (e.g. "cancel" or "login").  and if these
+  buttons don't exist, it's no problem*/
+  this.domPanel.find("button.close").click($.proxy(this.close, this));
+  this.domPanel.find("button.submit").click($.proxy(this.onSubmitClick, this));
+
   
 }; //wsp.Panel
 
@@ -123,6 +122,13 @@ wsp.Panel.prototype.onBeforeClose = function (event, ui) {
 };
 
 /*
+  Called by default if panel has a submit button.  override
+*/
+wsp.Panel.prototype.onSubmitClick = function () {
+  //override to provide functionality
+};
+
+/*
   Call this method when there is an error from ajax request.
   Makes the assumption that there is a .error label on the panel
 */
@@ -149,8 +155,7 @@ wsp.Panel.prototype.setError = function (msg) {
 /*inherits from Panel and is used to show settings info*/
 wsp.SettingsPanel = function(name) {
   wsp.Panel.call(this, name);
-  this.domPanel.find("button.close").click($.proxy(this.close, this));
-  this.domPanel.find("button.login").click($.proxy(this.onLoginClick, this));
+  //this.domPanel.find("button.close").click($.proxy(this.close, this));
 
   this.domPanel.find(".location").change($.proxy(this.onCheckboxChange, this));
   this.domPanel.find(".minetta").change($.proxy(this.onCheckboxChange, this));
@@ -175,14 +180,7 @@ wsp.SettingsPanel.prototype.onBeforeOpen = function(event, ui) {
     .prop("checked", ($.inArray(wspApp.constants.DEFAULT_LAYER_ID, val) !== -1))
     .attr("data-layer-id", wspApp.constants.DEFAULT_LAYER_ID)
     .checkboxradio("refresh");
-  
-  //also update the text of the login button
-  val = "Login";
-  if (wspApp.map.user) {
-    val = "Logout, " + wspApp.map.user.displayName;
-  }
-  this.domPanel.find("button.login").html(val);
-  
+    
 };
 
 
@@ -214,26 +212,6 @@ wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
     default: //do nothing
   }
 }
-
-/*called to either log in or log out*/
-wsp.SettingsPanel.prototype.onLoginClick = function (event) {
-  if (wspApp.map.user) {
-    //want to logout
-    var jqxhr = $.ajax({url: wspApp.map.dataUrl,
-                        data: {verb: "logout", noun: "user"},                      
-                        dataType: "json",
-                        context: this})    
-      .done(function(data){
-        wspApp.map.setSetting(wsp.Map.Setting.user, null);
-        this.close();
-      })
-      .fail(this.ajaxFail);
-    
-  } else {
-    //bring to login page
-    wspApp.map.panels.login.open();
-  }
-};
 
 /*called when map has loaded layers*/
 wsp.SettingsPanel.prototype.onLayersLoaded = function(layers) {
@@ -362,8 +340,6 @@ wsp.EditTreePanel = function(name) {
   wsp.Panel.call(this, name);
   
   //tell what to do when click on update
-  this.domPanel.find("button.update").click($.proxy(this.update, this));
-  this.domPanel.find("button.cancel").click($.proxy(this.close, this));
   this.domPanel.find("select.taxon").change($.proxy(this.onSelectChange, this));
   
   this.layersNeedUpdating = true;
@@ -479,15 +455,12 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
     $(this).checkboxradio("refresh");
   });
   
-  
-  
-  
 };
 
 /*
   Attempts to update tree to current state
 */
-wsp.EditTreePanel.prototype.update = function() {
+wsp.EditTreePanel.prototype.onSubmitClick = function() {
 
   var tree = this.openOpts.base;
   
@@ -531,11 +504,6 @@ wsp.EditTreePanel.prototype.onSelectChange = function () {
 /*inherits from Panel and is used to add a new taxon*/
 wsp.AddTaxonPanel = function(name) {
   wsp.Panel.call(this, name);
-  
-  //tell what to do when click on update
-  this.domPanel.find("button.submit").click($.proxy(this.submit, this));
-  this.domPanel.find("button.cancel").click($.proxy(this.close, this));
-  
 };
 
 wsp.AddTaxonPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
@@ -563,7 +531,7 @@ wsp.AddTaxonPanel.prototype.onClose = function() {
 /*
   Attempts to add new taxon
 */
-wsp.AddTaxonPanel.prototype.submit = function() {
+wsp.AddTaxonPanel.prototype.onSubmitClick = function() {
 
   var genus = this.domPanel.find(".genus").val(),
     species = this.domPanel.find(".species").val(),
@@ -593,9 +561,13 @@ wsp.AddTaxonPanel.prototype.submit = function() {
 wsp.LoginPanel = function(name) {
   wsp.Panel.call(this, name);
   
-  //tell what to do when click on update
-  this.domPanel.find("button.login").click($.proxy(this.login, this));
-  this.domPanel.find("button.cancel").click($.proxy(this.close, this));
+  //wire click events
+  this.domPanel.find("a.forgot").click($.proxy(function(){
+    wspApp.map.panels.forgot.open({email: this.domPanel.find(".username").val()});
+  }, this));
+  this.domPanel.find("a.signup").click(function(){
+    wspApp.map.panels.register.open();
+  });
   
 };
 
@@ -629,7 +601,7 @@ wsp.LoginPanel.prototype.logout = function() {
 /*
   Attempts to log user in
 */
-wsp.LoginPanel.prototype.login = function() {
+wsp.LoginPanel.prototype.onSubmitClick = function() {
 
   var jqxhr = $.ajax({url: wspApp.map.dataUrl,
                       data: {verb: "login", noun: "user",
@@ -641,8 +613,6 @@ wsp.LoginPanel.prototype.login = function() {
       var user = new wsp.User({dbUser: data.user});
       wspApp.map.setSetting(wsp.Map.Setting.user, user);
             
-      //want to switch to settings panel
-      //wspApp.map.panels.settings.open();
       this.close();
       
     })
@@ -652,10 +622,6 @@ wsp.LoginPanel.prototype.login = function() {
 
 wsp.MessagePanel = function(name) {
   wsp.Panel.call(this, name);
-
-  //tell what to do when click on update
-  this.domPanel.find("button.close").click($.proxy(this.close, this));
-  
 };
 
 wsp.MessagePanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
@@ -668,4 +634,55 @@ wsp.MessagePanel.prototype.onBeforeOpen = function(event, ui) {
   
   this.setError(s);
   
+};
+
+/*Panel to display when user forgets password*/
+wsp.ForgotPasswordPanel = function(name) {
+  wsp.Panel.call(this, name);
+};
+
+wsp.ForgotPasswordPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+wsp.ForgotPasswordPanel.prototype.constructor = wsp.ForgotPasswordPanel;
+
+wsp.ForgotPasswordPanel.prototype.onBeforeOpen = function(event, ui) {
+  var s = this.openOpts.email || "";
+  
+  this.domPanel.find(".email").val(s);
+  
+};
+
+/*Panel to display for a new user to register for an account*/
+wsp.RegisterPanel = function(name) {
+  wsp.Panel.call(this, name);
+};
+
+wsp.RegisterPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+wsp.RegisterPanel.prototype.constructor = wsp.RegisterPanel;
+
+
+wsp.RegisterPanel.prototype.onBeforeOpen = function(event, ui) {
+  //clear inputs in case they have been opened before
+  this.domPanel.find(".password").val(null);
+  this.domPanel.find(".password2").val(null);
+  this.setError(null); //clear any error msg from previous time
+};
+
+wsp.RegisterPanel.prototype.onSubmitClick = function() {
+  var error = null,
+    pw = this.domPanel.find(".password").val(),
+    pw1 = this.domPanel.find(".password2").val(),
+    email = this.domPanel.find(".email").val();
+  
+  //TODO: more robust checking
+  if (pw !== pw1) {
+    error = "Passwords do not match";
+  }
+  if (!pw) {
+    error = "Please enter a password";
+  }
+  if (!email) {
+    error = "Please enter your email address";
+  }
+  
+  this.setError(error); //could be null
 };

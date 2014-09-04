@@ -54,6 +54,8 @@ wsp.Map = function () {
   this.panels.displayTree = new wsp.DisplayTreePanel("tree-info-panel");
   this.panels.editTree = new wsp.EditTreePanel("tree-edit-panel");
   this.panels.login = new wsp.LoginPanel("login-panel");
+  this.panels.forgot = new wsp.ForgotPasswordPanel("forgot-panel");
+  this.panels.register = new wsp.RegisterPanel("register-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
   this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
   
@@ -1136,10 +1138,6 @@ wsp.CommentManager.prototype.saveComment = function (comment) {
       //reset new comment in case we just added a new comment
       this.newComment.text = null;
       this.newComment.refresh();
-      //$("#map-page").trigger("create");
-       	
-
-      
     
     })
     .fail(function(jqXHR, textStatus, errorThrown) {
@@ -1266,9 +1264,10 @@ wsp.CommentManager.prototype.remove = function (comment) {
 wsp.Comment = function(manager, opts) {
     //now the variables where we will save dom elements that get added/removed
    var display = {dom: null, user: null, date: null, text: null},
-    edit = {dom: null, textDom: null, buttons: null};
+    edit = {dom: null, textArea: null, buttons: null},
+    stockElements = $("#stock-elements-panel");
     
-  this.$li = null; //item that will hold display dom elements
+  this.$li = $("<li>"); //item that will hold display dom elements
   
   opts = opts || {};
   opts.dbComment = opts.dbComment || {};
@@ -1288,11 +1287,16 @@ wsp.Comment = function(manager, opts) {
     opts = opts || {};
     
     var allowEdit = opts.allowEdit || (this.id === null); //can edit a new comment
-    if (!this.$li) {
-      //need to create
-      this.$li = $("<li>");
-
-    }    
+    
+    //if comment isn't new, want to allow user to cancel editing and possibly delete
+    var that = this;
+    var user = wspApp.map.user;
+    var showCancel = this.id;    
+    var showDelete = showCancel && user &&
+        ((user.id === this.userId) || (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)));
+//console.log("user is ");
+//console.log(user);
+//console.log("showcancel: " + showCancel + " and delete: " + showDelete);
     
     //first remove children of li.  detach retains listeners and classes (as
     //opposed to .empty() which removes some of them) and appears to be able
@@ -1309,110 +1313,90 @@ wsp.Comment = function(manager, opts) {
     if (allowEdit) {
       //want an input box and submit/cancel (and maybe delete) buttons
       if (!edit.dom) {
-        edit.dom = $("<div>")
-          .addClass("comment-edit");
         
-        edit.textDom = $("<textarea>")
-          .addClass("comments")
-          .attr("type", "text")
-          .attr("placeholder", "Add a comment");
-
-        edit.buttons = $("<div>")
-          .addClass("ui-corner-all ui-mini")
-          .attr("data-role", "controlgroup")
-          .attr("data-type", "horizontal");
-
-        edit.buttons.remove = $("<button>") //delete is a keyword
-          .addClass("delete")
-          .html("Delete")
-          .on("click", $.proxy(function(){
-            manager.deleteComment(this);
-          }, this));
-
+        edit.dom = stockElements.find(".comment-edit").clone();
         
-        edit.buttons.save = $("<button>")
-          .addClass("save")
-          .html("Save")
-          .on("click", $.proxy(function(){
-            //update text field
-            this.text = edit.textDom.val();
-            manager.saveComment(this);
-          }, this));
-          
-        edit.buttons.cancel = $("<button>")
-          .addClass("cancel")
-          .html("Cancel")
-          .on("click", $.proxy(function(){
-            //want to go from editing to regular display
-            this.refresh({allowEdit: false});
-          }, this));
-
+        edit.textArea = edit.dom.find(".comments");
+        edit.buttons = edit.dom.find(".button-holder");
         
-        //will always have submit.  not necessarily cancel and delete
-        edit.buttons.append(edit.buttons.save);
+        //now get buttons for easy reference - won't need to find again
+        var tmpButtons = stockElements.find(".comment-buttons").clone();
+        edit.buttons.remove = tmpButtons.find(".delete");
+        edit.buttons.save = tmpButtons.find(".save");
+        edit.buttons.cancel = tmpButtons.find(".cancel");
                 
-        //now add them appropriately
-        edit.dom.append(edit.textDom)
-          .append(edit.buttons);
+        //update height of textarea - otherwise it is way too tall
+        edit.textArea.textinput().textinput("refresh");
+
+        //set up button click handling
+        edit.buttons.remove.on("click", $.proxy(function(){
+          manager.deleteComment(this);
+        }, this));
+
+        edit.buttons.save.on("click", $.proxy(function(){
+          this.text = edit.textArea.val();
+          manager.saveComment(this);
+        }, this));
+
+        edit.buttons.cancel.on("click", $.proxy(function(){
+          //want to go from editing to regular display
+          this.refresh({allowEdit: false});
+        }, this));
         
       }
-
-      //at this point, dom elements exist and can add/remove/modify them as needed
-      edit.textDom.val(this.text);
-      
-      //if comment isn't new, want to allow user to cancel editing and possibly delete
-      var user = wspApp.map.user;
-      var showCancel = this.id;
-      
-      var showDelete = showCancel && user &&
-          ((user.id === this.userId) || (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)));
-      
-      this.displayButton(edit.buttons.cancel, showCancel);
-      this.displayButton(edit.buttons.remove, showDelete);
       
       this.$li.append(edit.dom);
+      edit.textArea.val(this.text);
+
+      this.toggleButton(edit.buttons.save, showCancel);
+      this.toggleButton(edit.buttons.cancel, showCancel);
+      this.toggleButton(edit.buttons.remove, showDelete);
+      
+      //when editing, listen for textarea input to show/hide save button
+      //only for new comments, not existing ones
+      if (!this.id) {
+        //want to show save button when user has typed text
+        edit.textArea.on("input", function(){            
+          if ($(this).val().length > 0) {
+            //only add save button if it isn't.  toggleButton will check, but
+            //no need for the extra function calls
+            if (!edit.buttons.save.isAdded) {
+              that.toggleButton(edit.buttons.save, true);
+            }
+          } else {
+            that.toggleButton(edit.buttons.save, false);
+          }
+        });
+      } else {
+        edit.textArea.off("input");
+      }
       
     } else {
       //want to display info
       if (!display.dom) {
-        display.dom = $("<div>")
-          .addClass("comment-display")          
-          .on("click", $.proxy(function(){
-            //only open to allow edit if user has permissions
-            var user = wspApp.map.user;
-            if (user && ((user.id === this.userId) ||
-                         (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)))) {
-              this.refresh({allowEdit: true});  
-            }
-
-            
-            
-          }, this));
-        
-        display.text = $("<div>")
-          .addClass("comments");
-        display.date = $("<div>")
-          .addClass("date");
-        display.user = $("<div>")
-          .addClass("user");
+        display.dom = stockElements.find(".comment-display").clone();
       
-        display.dom.append(display.user);
-        display.dom.append(display.date);
-        display.dom.append(display.text);
+        display.text = display.dom.find(".comments");
+        display.date = display.dom.find(".date");
+        display.user = display.dom.find(".user");
+        
+        display.dom.on("click", $.proxy(function(){
+          //only open to allow edit if user has permissions
+          user = wspApp.map.user;
+          if (user && ((user.id === this.userId) ||
+                       (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)))) {
+            this.refresh({allowEdit: true});  
+          }
+        }, this));
       }
       
+      this.$li.append(display.dom);
       display.text.text(this.text);
       display.date.text(this.date);      
       display.user.text(this.username || "Anonymous");
       
-      this.$li.append(display.dom);
-      
     }
-    
-    if (!opts.suppressCreate) {
-      $("#map-page").trigger("create");
-    }
-    
+  
     return this.$li;
   };
     
@@ -1426,16 +1410,16 @@ wsp.Comment = function(manager, opts) {
   
   /*takes a button and a boolean whether to display it or not and adds to
   dom or removes accordingly*/
-  this.displayButton = function (button, display) {
-    if (display && (!$.contains(edit.buttons[0], button))) {
+  this.toggleButton = function (button, display) {
+    if (display && !button.isAdded) {
       //add
-      //edit.buttons.append(button);
       edit.buttons.controlgroup().controlgroup("container").append(button);
-    } else if (!display && ($.contains(edit.buttons[0], button))) {
+      button.isAdded = true;
+    } else if (!display && button.isAdded) {
       //remove
-      edit.buttons.detach(button);
-    }
-    
+      button.detach();
+      button.isAdded = false;
+    }    
   };
   
 }; //end of Comment

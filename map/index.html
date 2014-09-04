@@ -66,16 +66,7 @@
   </head>
   <body>
         
-    <div data-url="map-page" data-role="page" id="map-page" data-title="WSP">
-    <!--
-      <div data-role="header" data-position="fixed">
-          <h1>WSP Eco Map</h1>
-          <button id="user-settings"
-            class="ui-btn ui-btn-right ui-corner-all ui-btn-a ui-mini ui-btn-icon-notext ui-icon-gear"
-            type="button"
-            >Options</button>
-      </div><!-- /header -->
-      
+    <div data-url="map-page" data-role="page" id="map-page" data-title="WSP">      
       
       <div data-role="header" data-position="fixed">
         <h1>WSP Eco Map</h1>
@@ -83,7 +74,7 @@
         <a href="#map-about" class="ui-btn-left" data-role="button" data-inline="true">About</a>
 
         <a href="#option-menu" class="ui-btn-right" data-rel="popup" data-role="button"
-          data-inline="true" data-icon="gear" data-iconpos="left">Options</a>
+          data-inline="true" data-icon="bars" data-iconpos="left">Options</a>
         
         <div data-role="popup" id="option-menu">
           <ul data-role="listview" data-inset="true" style="min-width:210px;">
@@ -94,17 +85,41 @@
         </div>
                 
       
-      </div>
-      
-      
+      </div> <!-- /header-->
 
       <div role="main" class="ui-content">
-        <!--
-        <a href="#add-form" class="ui-btn ui-icon-gear ui-btn-icon-notext ui-corner-all">No text</a>
-        -->
         <div id="map-canvas"></div>
       
       </div><!-- /content -->
+      
+      <div id="stock-elements-panel" data-role="panel" data-display="overlay">
+        <!--this panel contains some elements that are added/removed dynamically
+          to other panels.  This panel itself is not actually opened on page.
+          This is really more for convenience than anything
+        -->
+        
+        <div class="comment-edit">
+          <textarea class="comments" type="text" placeholder="Add a comment">
+          </textarea>
+          <div class="button-holder ui-corner-all ui-mini" data-role="controlgroup"
+            data-type="horizontal">
+          </div>
+        </div>
+
+        <div class="comment-buttons">
+          <button class="delete">Delete</button>
+          <button class="save">Save</button>
+          <button class="cancel">Cancel</button>
+        </div>
+
+        
+        <div class="comment-display">
+          <div class="user"></div>
+          <div class="date"></div>
+          <div class="comments"></div>
+        </div>
+        
+      </div>
 
       <div id="tree-info-panel" data-role="panel" data-position-fixed="true" data-display="overlay"
         data-theme="b" data-animate="false">
@@ -146,9 +161,10 @@
 
           
           <label class="error"></label>
-          <a href="#" data-rel="close" class="ui-btn ui-corner-all ui-btn-a ui-mini">
+
+          <button type="button" class="close ui-btn ui-corner-all ui-btn-a ui-mini">
             Close
-          </a>
+          </button>
           
           <ul class="comments" data-role="listview"></ul>
           
@@ -174,32 +190,83 @@
           <label class="error"></label>
           
           <button type="button"
-            class="update ui-btn ui-corner-all ui-btn-a ui-mini">Update</button>
+            class="submit ui-btn ui-corner-all ui-btn-a ui-mini">Update</button>
           <button type="button"
-            class="cancel ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
       </div><!-- /panel -->
 
       <div id="login-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Login</h3>
         
-        <label class="panel-descriptor">Username</label>
+        <label class="panel-descriptor">Email</label>
         <input class="username" value="" data-clear-btn="true" data-mini="true"
-          data-theme="a" type="text">
+          data-theme="a" type="email">
         
-        <label class="panel-descriptor">Password</label>
+        <label class="panel-descriptor">Password &nbsp;&nbsp;
+          <a href="#" class="forgot">(forgot password?)</a>
+        </label>
+        
         <input class="password" value=""
           data-clear-btn="true" autocomplete="off" data-mini="true"
           data-theme="a" type="password">
         
+        
         <label class="error"></label>
         
         <br>
-        <button type="button" class="login ui-btn ui-corner-all ui-mini ui-btn-a">
-          Login</button>
+        <button type="button" class="submit ui-btn ui-corner-all ui-mini ui-btn-a">
+          Submit</button>
         <button type="button"
-            class="cancel ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
+
+        <br>
+        <label class="panel-descriptor">
+          <a href="#" class="signup">Sign up for account</a>
+        </label>
+            
         
       </div><!-- /panel -->
+
+      <div id="forgot-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
+        <h3 class="panel-heading">Forgot Password</h3>
+        
+        <label class="panel-descriptor">Email</label>
+        <input class="email" value="" data-clear-btn="true" data-mini="true" type="email">
+                
+        <label class="error"></label>
+        
+        <br>
+        <button type="button" class="submit ui-btn ui-corner-all ui-mini ui-btn-a">
+          Submit</button>
+        <button type="button"
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
+        
+      </div><!--forgot panel -->
+
+      <div id="register-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
+        <h3 class="panel-heading">Sign up for an account</h3>
+        
+        <input class="email" placeholder="Your email" value="" data-clear-btn="true"
+          data-theme="a" data-mini="true" type="email">
+        
+        <input class="password" value="" placeholder="Create a password"
+          data-clear-btn="true" autocomplete="off" data-mini="true"
+          data-theme="a" type="password">
+
+        <input class="password2" value="" placeholder="Re-enter password"
+          data-clear-btn="true" autocomplete="off" data-mini="true"
+          data-theme="a" type="password">
+
+          
+        <label class="error"></label>
+        
+        <br>
+        <button type="button" class="submit ui-btn ui-corner-all ui-mini ui-btn-a">
+          Sign up</button>
+        <button type="button"
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
+        
+      </div><!--forgot panel -->
 
       <div id="message-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Hey there!</h3>
@@ -235,8 +302,8 @@
         
         </div>
 
-        <button type="button"
-            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
+        <button type="button" class="close ui-btn ui-corner-all ui-btn-a ui-mini">
+          Close</button>
         
       </div><!-- /panel -->
 
@@ -257,7 +324,7 @@
           Submit</button>
 
         <button type="button"
-            class="cancel ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
         
       </div><!-- /panel -->
 
