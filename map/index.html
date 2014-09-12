@@ -6,8 +6,7 @@
     <meta charset="utf-8">
     
     <script type="text/javascript">
-      var wsp = {}; //"namespace" for included js files
-      var wspApp = {}; //global variable; will be instance of our app
+      var wsp = {}; //"namespace" for included js files      
     </script>
   
     <!--use google's jquery as it is likely already cached-->
@@ -25,43 +24,15 @@
     <script src="js/markerclusterer_compiled.js" type="text/javascript"></script>
     <!--<script src="js/mc.js" type="text/javascript"></script>-->
 
-    
     <link rel="stylesheet" href="css/style.css"/>
     
     <script type="text/javascript">
-      $( document ).on( "pagecreate", "#map-page", function() {
-        wspApp.baseMap = new google.maps.Map(document.getElementById('map-canvas'),
-            { zoom: 17,
-              center: new google.maps.LatLng(40.731030, -73.997300),
-              mapTypeId: google.maps.MapTypeId.SATELLITE,
-              streetViewControl: false,
-              mapTypeControlOptions: {
-                position: google.maps.ControlPosition.TOP_LEFT
-              }
+      var wspApp = new wsp.Application(); //global variable; will be instance of our app
 
-
-        });
-        wspApp.baseMap.setTilt(0); //don't want 45 angle
-
-        wspApp.baseMap.overlayMapTypes.insertAt(0,
-          new wsp.TransparentMapType(new google.maps.Size(4096, 4096)));
-
-          
-        //this is unlikely to change in database, but in case it does, it's
-        //simpler to change here than in several places.
-        wspApp.constants = {
-          DEFAULT_LAYER_ID: 1
-        };
-        
-        wspApp.map = new wsp.Map();
-        wspApp.map.requestInitialData();
-        /*
-        setTimeout(function(){
-          wspApp.map.requestInitialData();   
-        }, 6500);
-        */
+      $(document).on("pagecontainercreate", function(event, ui) {
+        wspApp.pageContainer = new wsp.PageContainer();
       });
-         
+               
     </script>
   </head>
   <body>
@@ -71,14 +42,16 @@
       <div data-role="header" data-position="fixed">
         <h1>WSP Eco Map</h1>
         
-        <a href="#map-about" class="ui-btn-left" data-role="button" data-inline="true">About</a>
+      <a href="#map-about" class="ui-btn-left" data-role="button" data-inline="true">About</a>
 
         <a href="#option-menu" class="ui-btn-right" data-rel="popup" data-role="button"
           data-inline="true" data-icon="bars" data-iconpos="left">Options</a>
         
         <div data-role="popup" id="option-menu">
           <ul data-role="listview" data-inset="true" style="min-width:210px;">
-            <li><a href="#" class="option login" data-option="login">Login</a></li>
+            <li class="login"><a href="#" class="option login" data-option="login">Login</a></li>
+            <li class="profile"><a href="#user-profile" class="option"
+              data-option="profile">My Profile</a></li>
             <li><a href="#" class="option" data-option="settings">Settings</a></li>
             <li><a href="#map-about">About</a></li>
           </ul>
@@ -198,9 +171,9 @@
       <div id="login-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Login</h3>
         
-        <label class="panel-descriptor">Email</label>
+        <label class="panel-descriptor">Username</label>
         <input class="username" value="" data-clear-btn="true" data-mini="true"
-          data-theme="a" type="email">
+          data-theme="a" type="text">
         
         <label class="panel-descriptor">Password &nbsp;&nbsp;
           <a href="#" class="forgot">(forgot password?)</a>
@@ -231,7 +204,8 @@
         <h3 class="panel-heading">Forgot Password</h3>
         
         <label class="panel-descriptor">Email</label>
-        <input class="email" value="" data-clear-btn="true" data-mini="true" type="email">
+        <input class="email" value="" data-clear-btn="true" data-mini="true"
+          data-theme="a" placeholder="Enter email address" type="email">
                 
         <label class="error"></label>
         
@@ -246,18 +220,12 @@
       <div id="register-panel" data-role="panel" data-position="right" data-position-fixed="true" data-display="overlay" data-theme="b" data-animate="false">
         <h3 class="panel-heading">Sign up for an account</h3>
         
+        <input class="username" placeholder="Create a username" value="" data-clear-btn="true"
+          data-theme="a" data-mini="true" type="text" maxlength="25">
+      
         <input class="email" placeholder="Your email" value="" data-clear-btn="true"
           data-theme="a" data-mini="true" type="email">
         
-        <input class="password" value="" placeholder="Create a password"
-          data-clear-btn="true" autocomplete="off" data-mini="true"
-          data-theme="a" type="password">
-
-        <input class="password2" value="" placeholder="Re-enter password"
-          data-clear-btn="true" autocomplete="off" data-mini="true"
-          data-theme="a" type="password">
-
-          
         <label class="error"></label>
         
         <br>
@@ -330,18 +298,92 @@
 
     </div>
 
-
-
     <div data-role="page" id="map-about" data-title="WSP - About">
-
       <div data-role="header" data-position="fixed" data-add-back-btn="true">
         <h1>About WSP Eco Map</h1>        
       </div>
 
-      <div data-role="content">
+      <div role="main" class="ui-content">
         <p>Placeholder text</p>
       </div>
+    </div>
 
+    <div data-role="page" id="user-pw" data-title="Set Password" data-theme="b">
+      <div data-role="header" data-position="fixed">
+        <h1>WSP Password</h1>        
+      </div>
+      <div role="main" class="ui-content">
+        <h3 class="panel-heading">Please set your password</h3>
+
+        <input class="password" value="" placeholder="Enter current password"
+        data-clear-btn="true" autocomplete="off" data-mini="true"
+        data-theme="a" type="password">
+
+        <input class="password0" value="" placeholder="Create a new password"
+        data-clear-btn="true" autocomplete="off" data-mini="true"
+        data-theme="a" type="password">
+
+        <input class="password1" value="" placeholder="Re-enter new password"
+          data-clear-btn="true" autocomplete="off" data-mini="true"
+          data-theme="a" type="password">
+            
+        <label class="error"></label>
+        
+        <br>
+        <button type="button" class="submit ui-btn ui-corner-all ui-mini ui-btn-a">
+          Update Password</button>
+        <button type="button"
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Cancel</button>
+        
+      </div>
+    </div>
+
+    <div data-role="page" id="user-profile" data-title="Update Profile" data-theme="b">
+      <div data-role="header" data-position="fixed">
+        <h1>WSP Profile</h1>        
+      </div>
+      <div role="main" class="ui-content">
+        <h3 class="panel-heading">Your profile</h3>
+        
+        <label class="panel-descriptor">Display Name</label>
+        <input class="display-name" value="" placeholder="Enter Display Name"
+          data-clear-btn="true" data-mini="true"
+          data-theme="a" type="text">
+
+        <label class="panel-descriptor">First Name</label>
+        <input class="first-name" value="" placeholder="Enter First Name"
+          data-clear-btn="true" data-mini="true"
+          data-theme="a" type="text">
+        
+        <label class="panel-descriptor">Last Name</label>
+        <input class="last-name" value="" placeholder="Enter Last Name"
+          data-clear-btn="true" data-mini="true"
+          data-theme="a" type="text">
+
+        <label class="panel-descriptor">Postal Code</label>
+        <input class="postal-code" value="" placeholder="Enter Postal Code"
+          data-clear-btn="true" data-mini="true"
+          data-theme="a" type="text">
+
+        <label class="panel-descriptor">Email Address</label>
+        <input class="email" value="" placeholder="Enter Email Address"
+          data-clear-btn="true" data-mini="true"
+          data-theme="a" type="text">
+
+        <label class="panel-descriptor">
+          <a href="#user-pw" class="password">Change Password</a>
+        </label>
+
+
+        <label class="error"></label>
+          
+        <br>
+        <button type="button" class="submit ui-btn ui-corner-all ui-mini ui-btn-a">
+          Update Profile</button>
+        <button type="button"
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
+        
+      </div>
     </div>
     
     

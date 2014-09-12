@@ -26,7 +26,17 @@ class Config {
   public $password = array(
     "iterationCount" => 6
   );
-  
+
+  /*for sending emails to users*/
+  public $email = array (
+    "from" => "",//email from address
+    "username" => "", //login info for smtp server
+    "password" => "", //login info
+    "host" => "", //e.g. smtp.gmail.com
+    "port" => "25",
+     //now where to direct user in reset link
+    "resetUrl" => "someurl"
+  );
 
 }
 

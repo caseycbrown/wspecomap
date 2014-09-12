@@ -24,7 +24,6 @@ abstract class Manager {
     
     $verb = $dh->getParameter("verb");
     
-    
     if ($verb === "get") {
       $jd = $this->find($dh, $this->findHelper($dh));
     } else if (($verb === "add") || ($verb === "update") || ($verb === "delete")) {
@@ -36,26 +35,13 @@ abstract class Manager {
         
         switch ($verb) {
           case "update":
-            if ($user->hasPrivilege($this->updatePriv_)) {
-              $jd = $obj->update($dh);
-            } else {
-              $jd->set("error", "User does not have permission to update $this->objName_");
-            }
+            $jd = $this->update($dh, $obj, $user);
             break;
           case "add":
-            if ($user->hasPrivilege($this->addPriv_)) {
-              $jd = $obj->add($dh, $user);
-            } else {
-              $jd->set("error", "User does not have permission to add $this->objName_");
-            }
-
+            $jd = $this->add($dh, $obj, $user);
             break;
           case "delete":
-            if ($user->hasPrivilege($this->deletePriv_)) {
-              $jd = $obj->delete($dh);
-            } else {
-              $jd->set("error", "User does not have permission to delete $this->objName_");
-            }
+            $jd = $this->delete($dh, $obj, $user);
             break;
           default:
             //shouldn't see this case
@@ -92,6 +78,37 @@ abstract class Manager {
     return $jd;
   }
   
+  /*add, update, and delete are all functions here that can be easily overridden*/
+  protected function add($dh, $obj, $user) {
+    $jd = new JsonData();    
+    if ($user->hasPrivilege($this->addPriv_)) {
+      $jd = $obj->add($dh);
+    } else {
+      $jd->set("error", "User does not have permission to add $this->objName_");
+    }
+    return $jd;
+  }
+  
+  protected function update($dh, $obj, $user) {
+    $jd = new JsonData();    
+    if ($user->hasPrivilege($this->updatePriv_)) {
+      $jd = $obj->update($dh);
+    } else {
+      $jd->set("error", "User does not have permission to update $this->objName_");
+    }
+    return $jd;
+  }
+  
+  protected function delete($dh, $obj, $user) {
+    $jd = new JsonData();    
+    if ($user->hasPrivilege($this->deletePriv_)) {
+      $jd = $obj->delete($dh);
+    } else {
+      $jd->set("error", "User does not have permission to delete $this->objName_");
+    }
+    return $jd;
+  }
+  
   /*
     returns a new user if values for one were saved.
     returns null otherwise
@@ -99,17 +116,11 @@ abstract class Manager {
   protected function getLoggedInUser() {
     $user = null;
     if (isset($_SESSION[Constants::USER_SESSION_VAR])) {
-      $user = new User();
-      $user->setAttributes($_SESSION[Constants::USER_SESSION_VAR]);
+      $user = new User($_SESSION[Constants::USER_SESSION_VAR]);
     }
     
-    
     // temp just to test
-    //$user = new User();
-    //$user->setAttributes(array("privileges" => "10"));
-          
-
-    
+    //$user = new User(array("privileges" => "1"));
     
     return $user;
   }

@@ -35,7 +35,7 @@ class LayerManager extends Manager{
   }
   
   /* 
-    Gets taxon(s) from database and returns jsondata object
+    Gets layer(s) from database and returns jsondata object
   */
   protected function findHelper($dh) {    
     $info = array("jsonName" => "layers");

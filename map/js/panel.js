@@ -7,6 +7,8 @@
 */
 wsp.OptionMenu = function(loginPanel) {
   this.domMenu = $("#option-menu");
+  this.profileItem = this.domMenu.find("li.profile").detach();
+  this.profileItem.isAdded = false;
   
   //set up event handler
   this.domMenu.find(".option").click($.proxy(this.onMenuOptionClick, this));
@@ -19,7 +21,7 @@ wsp.OptionMenu.prototype.onMenuOptionClick = function (event) {
   
   switch ($(event.currentTarget).attr("data-option")) {
     case "login":
-      if (wspApp.map.user) {
+      if (wspApp.user) {
         wspApp.map.panels.login.logout();
       } else {
         wspApp.map.panels.login.open();
@@ -39,9 +41,21 @@ wsp.OptionMenu.prototype.onMenuOptionClick = function (event) {
 wsp.OptionMenu.prototype.onLoginChange = function(user) {
   var s = "Login / Sign up";
   if (user) {
-    s = "Logout, " + user.displayName;
+    s = "Logout, " + ((user.displayName === null) ? user.username : user.displayName);
   }
-  this.domMenu.find(".login").html(s);
+  this.domMenu.find("a.login").html(s);
+  
+  //now add or remove profileItem
+  if (user && !this.profileItem.isAdded) {
+    //want to insert it after login item
+    this.domMenu.find("li.login").after(this.profileItem);
+    this.profileItem.isAdded = true;
+    
+  } else if (!user && this.profileItem.isAdded) {
+    this.profileItem.detach();
+    this.profileItem.isAdded = false;
+  }
+  
 };
 
 /*Panel is a class that displays info to user.  */
@@ -110,7 +124,7 @@ wsp.Panel.prototype.onClose = function(event, ui) {
   Gives a chance to set up the panel for visual display - subclass should override
 */
 wsp.Panel.prototype.onBeforeOpen = function (event, ui) {
-  //override to provide functionality
+  this.setError(null); //most panels want clean error msg when opened
 };
 
 /*
@@ -168,17 +182,17 @@ wsp.SettingsPanel.prototype.constructor = wsp.SettingsPanel;
 
 wsp.SettingsPanel.prototype.onBeforeOpen = function(event, ui) {
   //retreive settings from storage
-  var val = wspApp.map.getSetting(wsp.Map.Setting.showLocation);
+  var val = wspApp.getSetting(wspApp.Settings.showLocation);
   this.domPanel.find(".location").prop("checked", val).checkboxradio("refresh");
   
-  val = wspApp.map.getSetting(wsp.Map.Setting.showMinetta);
+  val = wspApp.getSetting(wspApp.Settings.showMinetta);
   this.domPanel.find(".minetta").prop("checked", val).checkboxradio("refresh");
   
   //for default layer, need to look to see if layer 1 is displayed
-  val = wspApp.map.getSetting(wsp.Map.Setting.layers);
+  val = wspApp.getSetting(wspApp.Settings.layers);
   this.domPanel.find(".default-layer")
-    .prop("checked", ($.inArray(wspApp.constants.DEFAULT_LAYER_ID, val) !== -1))
-    .attr("data-layer-id", wspApp.constants.DEFAULT_LAYER_ID)
+    .prop("checked", ($.inArray(wspApp.Constants.DEFAULT_LAYER_ID, val) !== -1))
+    .attr("data-layer-id", wspApp.Constants.DEFAULT_LAYER_ID)
     .checkboxradio("refresh");
     
 };
@@ -189,10 +203,10 @@ wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
   var checkVal = ct.prop("checked"); //will be a boolean value
   switch (ct.attr("data-setting")) {
     case "location":
-      wspApp.map.setSetting(wsp.Map.Setting.showLocation, checkVal);
+      wspApp.setSetting(wspApp.Settings.showLocation, checkVal);
       break;
     case "minetta":
-      wspApp.map.setSetting(wsp.Map.Setting.showMinetta, checkVal);
+      wspApp.setSetting(wspApp.Settings.showMinetta, checkVal);
       break;
 
     case "layer":
@@ -205,7 +219,7 @@ wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
         }
       });
 
-      wspApp.map.setSetting(wsp.Map.Setting.layers, visibleIds);
+      wspApp.setSetting(wspApp.Settings.layers, visibleIds);
       break;
     
     
@@ -221,13 +235,13 @@ wsp.SettingsPanel.prototype.onLayersLoaded = function(layers) {
   var label = null;
   var input = null;
   var that = this;
-  var visibleIds = wspApp.map.getSetting(wsp.Map.Setting.layers);
+  var visibleIds = wspApp.getSetting(wspApp.Settings.layers);
   
   layerHolder.empty();
   
   $.each(layers, function(layerId, layer) {
     //want to add a checkbox for each layer that is not default
-    if (layer.id !== wspApp.constants.DEFAULT_LAYER_ID) {
+    if (layer.id !== wspApp.Constants.DEFAULT_LAYER_ID) {
       //now add checkboxes for each layer
       label = $("<label></label>")
         .addClass("panel-descriptor")
@@ -307,7 +321,7 @@ wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   Removes or re-inserts edit button based on user
 */
 wsp.DisplayTreePanel.prototype.toggleEditWrapper = function () {
-  var user = wspApp.map.user;
+  var user = wspApp.user;
   //want to show or hide edit icon depending on if user is logged in and
   //has permissions to see it
   
@@ -387,7 +401,7 @@ wsp.EditTreePanel.prototype.onBeforeOpen = function(event, ui) {
     }
     
     //if user has permissions, pop in add new taxon option
-    var user = wspApp.map.user;    
+    var user = wspApp.user;    
     if (user && user.hasPrivilege(wsp.UserPrivilege.ADD_TAXON)) {
       s = "<option value='addNew'>...(add new taxon)...</option>";
       sel.append(s);
@@ -537,7 +551,7 @@ wsp.AddTaxonPanel.prototype.onSubmitClick = function() {
     species = this.domPanel.find(".species").val(),
     common = this.domPanel.find(".common").val();
   
-  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+  var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
                       data: {verb: "add", noun: "taxon",
                       genus: genus,
                       common: common,
@@ -563,7 +577,7 @@ wsp.LoginPanel = function(name) {
   
   //wire click events
   this.domPanel.find("a.forgot").click($.proxy(function(){
-    wspApp.map.panels.forgot.open({email: this.domPanel.find(".username").val()});
+    wspApp.map.panels.forgot.open();
   }, this));
   this.domPanel.find("a.signup").click(function(){
     wspApp.map.panels.register.open();
@@ -587,14 +601,14 @@ wsp.LoginPanel.prototype.onBeforeOpen = function(event, ui) {
 wsp.LoginPanel.prototype.logout = function() {
 
   //want to logout
-  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+  var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
                       data: {verb: "logout", noun: "user"},                      
                       dataType: "json",
                       context: this})    
-    .done(function(data){
-      wspApp.map.setSetting(wsp.Map.Setting.user, null);
+    .always(function(){
+      //do this whether or not server has success
+      wspApp.setSetting(wspApp.Settings.user, null);
     })
-    .fail(this.ajaxFail);
       
 };
 
@@ -603,7 +617,7 @@ wsp.LoginPanel.prototype.logout = function() {
 */
 wsp.LoginPanel.prototype.onSubmitClick = function() {
 
-  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+  var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
                       data: {verb: "login", noun: "user",
                       username: this.domPanel.find(".username").val(),
                       password: this.domPanel.find(".password").val()},
@@ -611,7 +625,7 @@ wsp.LoginPanel.prototype.onSubmitClick = function() {
                       context: this})    
     .done(function(data){
       var user = new wsp.User({dbUser: data.user});
-      wspApp.map.setSetting(wsp.Map.Setting.user, user);
+      wspApp.setSetting(wspApp.Settings.user, user);
             
       this.close();
       
@@ -644,12 +658,24 @@ wsp.ForgotPasswordPanel = function(name) {
 wsp.ForgotPasswordPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
 wsp.ForgotPasswordPanel.prototype.constructor = wsp.ForgotPasswordPanel;
 
-wsp.ForgotPasswordPanel.prototype.onBeforeOpen = function(event, ui) {
-  var s = this.openOpts.email || "";
-  
-  this.domPanel.find(".email").val(s);
-  
+
+/*
+  Get email address and tell server to send email
+*/
+wsp.ForgotPasswordPanel.prototype.onSubmitClick = function() {
+
+  var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
+                      data: {verb: "resetpw", noun: "user",
+                      email: this.domPanel.find(".email").val()},
+                      dataType: "json",
+                      context: this})    
+    .done(function(data){
+      this.setError(data.message);
+      
+    })
+    .fail(this.ajaxFail);
 };
+
 
 /*Panel to display for a new user to register for an account*/
 wsp.RegisterPanel = function(name) {
@@ -669,20 +695,337 @@ wsp.RegisterPanel.prototype.onBeforeOpen = function(event, ui) {
 
 wsp.RegisterPanel.prototype.onSubmitClick = function() {
   var error = null,
-    pw = this.domPanel.find(".password").val(),
-    pw1 = this.domPanel.find(".password2").val(),
-    email = this.domPanel.find(".email").val();
+    email = this.domPanel.find(".email").val(),
+    username = this.domPanel.find(".username").val();
   
   //TODO: more robust checking
-  if (pw !== pw1) {
-    error = "Passwords do not match";
-  }
-  if (!pw) {
-    error = "Please enter a password";
-  }
   if (!email) {
     error = "Please enter your email address";
   }
+  if (!username) {
+    error = "Please create a username";
+  }
+  
+  if (!error) {
+    //want to logout
+    var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
+                        data: {verb: "signup", noun: "user",
+                          username: username,
+                          email: email},                      
+                        dataType: "json",
+                        context: this})    
+      .done(function(data){
+        var user = new wsp.User({dbUser: data.user});
+        wspApp.setSetting(wspApp.Settings.user, user);
+        
+        /*fire off a password reset request.  do it this way, as it's simplest
+        way (for now) to send email asynchronously.  There are ways to do so
+        via php, but they are a little more involved - and don't want user
+        waiting the few seconds that it might take to send email*/
+        $.ajax({url: wspApp.Constants.DATA_URL,
+                data: {verb: "resetpw", noun: "user",
+                  email: user.email},                      
+                  dataType: "json",
+                  context: this});
+        
+        
+        //want to give user a message
+        var s = "Account created successfully!  You may add comments now.  ";
+        s += "Your comments will indicate that they were made by an unverified user.";
+        s += " To verify your account, please check your email and follow the ";
+        s += "link that has been sent to you.  After doing so, you will be able to ";
+        s += "set up a password so that you can log in again later and also fill out ";
+        s += "your profile.";
+        
+        wspApp.map.panels.message.open({error: s});
+        
+      })
+      .fail(this.ajaxFail);
+
+  }
   
   this.setError(error); //could be null
+  
+  
+  
+  
+};
+
+
+/*The object that contains and manages pages*/
+wsp.PageContainer = function() {
+  this.pages = {};
+  this.pages["map-about"] = new wsp.Page("map-about"); //no extra functionality
+  this.pages["map-page"] = new wsp.MapPage("map-page");
+  this.pages["user-pw"] = new wsp.PasswordPage("user-pw");
+  this.pages["user-profile"] = new wsp.ProfilePage("user-profile");
+  
+
+  var d = $(document);
+  d.on("pagecontainerbeforehide", $.proxy(this.onBeforeHide, this));
+  this.pc = $(":mobile-pagecontainer");
+  
+};
+
+wsp.PageContainer.prototype.onBeforeHide = function(event, ui) {
+  if (ui.nextPage) {
+    this.pages[ui.nextPage[0].id].onBeforeShow();
+  }  
+};
+
+/*Page is a class that encapsulates page functionality*/
+wsp.Page = function (name) {
+  name = "#" + name;
+  
+  this.dom = $(name); //returns jquery object
+    
+  $(document)
+    .on("pagecreate", name, $.proxy(this.onCreate, this))
+    .on("pagebeforecreate", name, $.proxy(this.onBeforeCreate, this));
+  
+  /*Generic page attempts to wire submit and close buttons.  Might
+  be labeled differently on forms (e.g. "cancel" or "login").  and if these
+  buttons don't exist, it's no problem*/
+  this.dom.find("button.close").click($.proxy(this.onCloseClick, this));
+  this.dom.find("button.submit").click($.proxy(this.onSubmitClick, this));
+     
+}; //wsp.Page
+
+/*
+  Called before page has been created. override in subclass
+*/
+wsp.Page.prototype.onBeforeCreate = function(event) {
+};
+/*
+  Called when page has been created - override in subclass
+*/
+wsp.Page.prototype.onCreate = function(event) {
+};
+
+/*called by page container before showing this page*/
+wsp.Page.prototype.onBeforeShow = function(event, ui) {
+  this.setError(null);
+};
+/*
+  Called by default if page has a submit button.  override
+*/
+wsp.Page.prototype.onSubmitClick = function () {
+  //override to provide functionality
+};
+/*
+  Called by default if page has a close button.  by default, navigate to home
+*/
+wsp.Page.prototype.onCloseClick = function () {
+  //override to provide functionality
+  //$("body").pagecontainer("change", "#");
+  wspApp.pageContainer.pc.pagecontainer("change", "#");
+};
+
+/*
+  Use to set error message on page.  Pass null to clear error
+*/
+wsp.Page.prototype.setError = function (msg) {
+  this.dom.find(".error").text(msg);
+}
+
+
+/*inherits from Page and is used to show map*/
+wsp.MapPage = function(name) {
+  wsp.Page.call(this, name);
+};
+
+wsp.MapPage.prototype = Object.create(wsp.Page.prototype); //inherit from page
+//set "constructor" property as per mozilla developer docs
+wsp.MapPage.prototype.constructor = wsp.MapPage;
+
+wsp.MapPage.prototype.onCreate = function(event) {
+  var baseMap = new google.maps.Map(document.getElementById('map-canvas'),
+      { zoom: 17,
+        center: new google.maps.LatLng(40.731030, -73.997300),
+        mapTypeId: google.maps.MapTypeId.SATELLITE,
+        streetViewControl: false,
+        mapTypeControlOptions: {
+          position: google.maps.ControlPosition.TOP_LEFT
+        }
+  });
+  baseMap.setTilt(0); //don't want 45 angle
+
+  baseMap.overlayMapTypes.insertAt(0,
+    new wsp.TransparentMapType(new google.maps.Size(4096, 4096)));
+      
+  wspApp.map = new wsp.Map(baseMap);
+  wspApp.map.requestInitialData();
+  /*
+  setTimeout(function(){
+    wspApp.map.requestInitialData();
+  }, 6500);
+  */
+};
+
+/*inherits from Page and is used to show page where user can reset password*/
+wsp.PasswordPage = function(name) {
+  wsp.Page.call(this, name);  
+  this.detachedPw = null;
+  this.token = null;
+  this.userId = null;
+};
+
+wsp.PasswordPage.prototype = Object.create(wsp.Page.prototype); //inherit from page
+//set "constructor" property as per mozilla developer docs
+wsp.PasswordPage.prototype.constructor = wsp.PasswordPage;
+
+/*called by page container before showing this page*/
+wsp.PasswordPage.prototype.onBeforeShow = function(event, ui) {
+  this.checkUrl();
+  //clear passwords
+  this.dom.find(".password").val(null);
+  this.dom.find(".password0").val(null);
+  this.dom.find(".password1").val(null);
+  
+};
+wsp.PasswordPage.prototype.onCreate = function(event) {
+  this.checkUrl();
+};
+
+/*call when page opens to see if userid/token have been given*/
+wsp.PasswordPage.prototype.checkUrl = function() {
+  //want to find url params
+  this.token = this.getURLParameter("token");
+  this.userId = this.getURLParameter("userid");
+
+  //want to remove current password if we are using a token
+  if (this.token && !this.detachedPw) {
+    //remove - jqm has wrapped curPw in a div, so take that out
+    this.detachedPw = this.dom.find(".password").parent().detach();    
+  } else if (!this.token && this.detachedPw) {
+    //put it back - before parent of input in question b/c of jqm markup
+    this.dom.find(".password0").parent().before(this.detachedPw);
+    this.detachedPw = null;
+    
+  }
+  
+  //this.dom.enhanceWithin();
+  
+};
+
+wsp.PasswordPage.prototype.getURLParameter = function(paramName) {
+  var half = window.location.href.split(paramName + "=")[1];
+  return (half !== undefined) ? decodeURIComponent(half.split('&')[0]) : null;
+};
+
+
+wsp.PasswordPage.prototype.onSubmitClick = function(event) {
+  var pw0 = this.dom.find(".password0").val(),
+    pw1 = this.dom.find(".password1").val(),
+    pw = this.dom.find(".password").val();
+  var error = null; 
+  if (pw0 !== pw1) {
+    error = "Passwords do not match";
+  }
+  //Not checking how good passwords are - nothing really to secure
+  if (!error) {
+    var data = {verb: "changepw", noun: "user",
+                passwordnew: pw0,
+                userid: this.userId};
+    //add either token or password
+    if (this.token) {
+      data.token = this.token;
+    } else {
+      data.password = pw;
+    }
+  
+    var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
+                      data: data,
+                      dataType: "json",
+                      context: this})    
+    .done(function(data) {
+      var user = new wsp.User({dbUser: data.user});
+      wspApp.setSetting(wspApp.Settings.user, user);
+
+      //if user hasn't set display name, send to profile page
+      if (user.displayName === null) {
+        wspApp.pageContainer.pc.pagecontainer("change", "#user-profile");
+      } else {
+        this.setError("Password successfully updated.");
+      }
+      
+    })
+    .fail(function (jqXHR, textStatus, errorThrown) {
+      var error = "Error: ";
+      if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
+        error += jqXHR.responseJSON.error;
+      } else {
+        error += errorThrown;
+      }
+      
+      this.setError(error);
+    });    
+  }
+  this.setError(error);
+  
+};
+
+/*inherits from Page and is used to show page where user can update profile*/
+wsp.ProfilePage = function(name) {
+  wsp.Page.call(this, name);
+  this.userId = null;
+};
+
+wsp.ProfilePage.prototype = Object.create(wsp.Page.prototype); //inherit from page
+//set "constructor" property as per mozilla developer docs
+wsp.ProfilePage.prototype.constructor = wsp.ProfilePage;
+
+/*called by page container before showing this page*/
+wsp.ProfilePage.prototype.onBeforeShow = function(event, ui) {
+  this.initializeFields();
+};
+wsp.ProfilePage.prototype.onCreate = function(event, ui) {
+  this.initializeFields();
+};
+
+/*sets fields according to user*/
+wsp.ProfilePage.prototype.initializeFields = function () {
+  var user = wspApp.getSetting(wspApp.Settings.user);
+  //this page shouldn't get opened if user is null, but in case it somehow happens,
+  //at least allow page to open without error
+  user = user || {};
+  this.dom.find(".display-name").val(user.displayName);
+  this.dom.find(".first-name").val(user.firstName);
+  this.dom.find(".last-name").val(user.lastName);
+  this.dom.find(".postal-code").val(user.postalCode);
+  this.dom.find(".email").val(user.email);
+  this.userId = user.id;
+  
+  this.setError(null);
+};
+
+wsp.ProfilePage.prototype.onSubmitClick = function(event) {
+  var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
+                    data: {verb: "update", noun: "user",
+                      userid: this.userId,
+                      displayname: this.dom.find(".display-name").val(),
+                      firstname: this.dom.find(".first-name").val(),
+                      lastname: this.dom.find(".last-name").val(),
+                      postalcode: this.dom.find(".postal-code").val(),
+                      email: this.dom.find(".email").val()
+                    },
+                    dataType: "json",
+                    context: this})    
+  .done(function(data){
+    this.setError("success!");
+    //could update current user object, but use data returned from db
+    var user = new wsp.User({dbUser: data.user});
+    wspApp.setSetting(wspApp.Settings.user, user);
+  })
+  .fail(function (jqXHR, textStatus, errorThrown) {
+    var error = "Error: ";
+    if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
+      error += jqXHR.responseJSON.error;
+    } else {
+      error += errorThrown;
+    }
+    
+    this.setError(error);
+  });    
+  
 };

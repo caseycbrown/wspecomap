@@ -1,55 +1,43 @@
 <?php
 
 include_once "./php/utility.php";
+include_once "./php/manager.php";
+include_once "./php/mailer.php";
 include_once "./php/password_hash.php"; //as of PHP v5.5, won't need anymore
 
 /**
   Simple object that handles database actions for a user
  */
-class UserManager {
+class UserManager extends Manager{
 
-  //at the moment, nothing interesting in constructor/destructor
+  public function __construct() {
+    $this->updatePriv_ = UserPrivilege::MODIFY_USER;
+    $this->addPriv_ = UserPrivilege::ADD_USER;
+    $this->deletePriv_ = UserPrivilege::DELETE_USER;
+    $this->objName_ = "user";
+  
+  }
   
   /*
-    Determines what to do based on request parameters
+    For handling the actions that are unique to users
   */
-  public function processRequest($dh) {
-    $verb = $dh->getParameter("verb");
+  protected function processOtherVerbs ($dh) {
     $jd = new JsonData();
+    $user = $this->createObjectFromRequest($dh);
+    $verb = $dh->getParameter("verb");
     switch ($verb) {
       //some actions require that a user be logged in
-
-      case "add":
-      case "update":
       case "logout":
       case "modify": //this is modifying a user other than self
         $loggedInUser = $this->getLoggedInUser();
-        
-/* temp just to test adding a user       
-        $loggedInUser = new User();
-        $loggedInUser->setAttributes(array("privileges" => "1"));
-*/      
         
         if ($loggedInUser === null) {
           $jd->set("error", "Could not proceed: user not logged in");
         } else {
           //proceed
           switch ($verb) {
-            case "add":
-              $newUser = new User();
-              $attr = array();
-              $attr["username"] = $dh->getParameter("username");
-              $attr["displayName"] = $dh->getParameter("display_name");
-              $attr["privileges"] = $dh->getParameter("privileges");
-              $newUser->setAttributes($attr);
-              
-              $jd = $loggedInUser->add($dh, $newUser, $dh->getParameter("password"));
-              
-              break;
             case "logout":
               $this->removeSessionUser();
-              break;
-            case "update":
               break;
             case "modify":
               break;
@@ -58,27 +46,160 @@ class UserManager {
         break;      
       case "login":
         //see if user provided valid credentials
-        $user = new User();
-        $user->setAttributes(array("username" => $dh->getParameter("username")));
-          if ($user->checkPassword($dh, $dh->getParameter("password"))) {
-            $user->loadFromDb($dh);
-            $this->saveToSession($user);
-            $jd->set("user", $user->getAttributes());
-          } else {
-            $jd->set("error", "Invalid user credentials");
-          }          
+        if ($user->checkPassword($dh, $dh->getParameter("password"))) {
+          $user->loadFromDb($dh);
+          $this->saveToSession($user);
+          $jd->set("user", $user->getAttributes());
+        } else {
+          $jd->set("error", "Invalid user credentials");
+        }          
         
         break;
-      case "forgot":
+      case "resetpw":
+        //verify that we have email
+        if ($user->getAttributes()["email"]) {
+          
+          $reset = $user->resetPassword($dh);
+          if ($reset["error"]) {
+            $jd->set("error", $reset["error"]);
+            
+          } else {
+            $msg = "Forgot your WSP Eco Map password?  No problem! ";
+            $msg .= "<br><br>\r\n\r\nPlease use on the following link to reset your password.";
+            $linkText = "Reset Password";
+            
+            if ($user->isNewUser($dh)) {
+              $msg = "Welcome to the WSP Eco Map!  Please use the following link";
+              $msg .= " to set up your password and profile.";
+              $linkText = "Complete Registration";
+            }
+            
+            $attr = $user->getAttributes();
+            $config = new Config();
+            $link = $config->email["resetUrl"] . "?token=" . $reset["token"] .
+              "&userid=" . $attr["id"];
+            $link = "<a href='$link'>$linkText</a>";
+                        
+            $msg .= "<br><br>\r\n\r\n" . $link;
+            
+            $mailer = new Mailer();
+            $sent = $mailer->send($attr["email"], "WSP Eco Map $linkText", $msg);
+            
+            if (!$sent) {
+              $jd->set("error", "Sending email failed");
+              //try to delete token
+              $user->deletePasswordToken($dh);
+            } else {
+              $jd->set("message", "Success.  Please check your email for a link " .
+                "to complete the process");
+              }
+          }
+          
+        } else {
+          $jd->set("error", "Cannot reset password - no email provided");
+        }
+                
+        break;
+      case "signup":
+        $jd = $user->add($dh, $dh->getParameter("password"));
+        break;
+      case "changepw":
+        //user either needs to be logged in or must provide token
+        $token = $dh->getParameter("token");
+        $curPw = $dh->getParameter("password");
+        $newPw= $dh->getParameter("passwordnew");
+        
+        if (!$token) {
+          $user = $this->getLoggedInUser();
+        }
+        
+        if ($user) {
+          $tmp = $user->getAttributes();
+          $jd = $user->update($dh, $newPw, $curPw, false, $token);        
+          
+          if (!$jd->get("error")) {
+            $user->loadFromDb($dh); //to get actual attributes
+            $this->saveToSession($user); //consider user logged-in
+            $jd->set("user", $user->getAttributes());
+            $user->deletePasswordToken($dh);
+          }
+          
+          
+        } else {
+          $jd->set("error", "Unable to change password");
+        }
+
         break;
       default:
         $jd->set("error", "Invalid verb given");
     }
 
     return $jd;
-    
   }
 
+  
+  /*
+    Returns a user that has been created from request
+  */
+  protected function createObjectFromRequest($dh) {
+    $attr = array();
+    $attr["id"] = $dh->getParameter("userid");
+    $attr["username"] = $dh->getParameter("username");
+    $attr["email"] = $dh->getParameter("email");
+    $attr["displayName"] = $dh->getParameter("displayname");
+    $attr["firstName"] = $dh->getParameter("firstname");
+    $attr["lastName"] = $dh->getParameter("lastname");
+    $attr["postalCode"] = $dh->getParameter("postalcode");
+    $attr["privileges"] = $dh->getParameter("privileges");
+    
+    return new User($attr);
+  }
+  
+  /*
+    Returns a user that has been created from a database row
+  */
+  protected function createObjectFromRow($row) {
+    return new User($row);
+  }
+
+  /* 
+    must be defined to extend Manager, but does nothing
+  */
+  protected function findHelper($dh) {    
+    return array("error" => "Cannot find users");    
+  }
+  /*
+    override find functionality for now - do not want to be able to search
+    for users
+  */
+  protected function find($dh, $info) {
+    return array("error" => "Cannot find users");    
+  }
+
+  /*don't add a user - sign up instead.  adding an object requires being logged in*/
+  protected function add($dh, $obj, $user) {
+    $jd = new JsonData();
+    $jd->set("error", "Error adding user.  Try verb 'signup'");
+    return $jd;
+  }
+
+  /*a little different than generic manager update.  allowed to proceed if
+    the logged-in user either has modify_user permissions (which means it can
+    modify any user) or is the same as the user object created from request, which
+    means a user is updating itself
+    */
+  protected function update($dh, $obj, $user) {
+    $jd = new JsonData();    
+    if ($user->hasPrivilege($this->updatePriv_) ||
+      ($user->getAttributes()["id"] === $obj->getAttributes()["id"])) {
+      $jd = $obj->update($dh);
+    } else {
+      $jd->set("error", "User does not have permission to update $this->objName_");
+    }
+    return $jd;
+  }
+
+  
   /*
     saves the given user to session
   */
@@ -92,20 +213,7 @@ class UserManager {
   private function removeSessionUser() {        
     unset($_SESSION[Constants::USER_SESSION_VAR]);
   }
-  
-  /*
-    returns a new user if values for one were saved.
-    returns null otherwise
-  */
-  public function getLoggedInUser() {
-    $user = null;
-    if (isset($_SESSION[Constants::USER_SESSION_VAR])) {
-      $user = new User();
-      $user->setAttributes($_SESSION[Constants::USER_SESSION_VAR]);
-    }
-    return $user;
-  }
-  
+    
   
 } //end UserManager class
 
@@ -146,18 +254,27 @@ abstract class Constants {
 class User {
   private $id_;
   private $username_;
+  private $email_;
   private $displayName_;
+  private $firstName_;
+  private $lastName_;
+  private $postalCode_;
   private $privileges_; //array of privileges user has
   
-  public function __construct() {
+  public function __construct($attrs) {
     //set defaults
     $this->clear();
+    $this->setAttributes($attrs);
   }
   
   private function clear() {
     $this->id_ = null;
     $this->username_ = null;
+    $this->email_ = null;
     $this->displayName_ = null;
+    $this->firstName_ = null;
+    $this->lastName_ = null;
+    $this->postalCode_ = null;
     
     if (isset($this->privileges_)) {
       unset($this->privileges_);
@@ -174,13 +291,15 @@ class User {
     //at least one of username or id must be set
     $id = $this->id_;
     $username = $this->username_;
-    if (($id === null) && ($username === null)) {
-      $toReturn["error"] = "Username or id must be specified";
+    $email = $this->email_;
+    if (($id === null) && ($username === null) && ($email === null)) {
+      $toReturn["error"] = "Username, email, or id must be specified";
     } else {
       $id = ($id === null) ? "null" : $id;
       $username = ($username === null) ? "null" : "'$username'";
+      $email = ($email === null) ? "null" : "'$email'";
           
-      $r = $dh->executeQuery("call get_user($id, $username)");
+      $r = $dh->executeQuery("call get_user($id, $username, $email)");
       if ($r["result"]) {
         //should only be one row.
         if ($r["result"]->num_rows === 1) {
@@ -188,7 +307,11 @@ class User {
           $toReturn["user"] = array();
           $toReturn["user"]["id"] = (int) $curRow["user_id"];
           $toReturn["user"]["displayName"] = $curRow["display_name"];
-          $toReturn["user"]["username"] = $curRow["email"];        
+          $toReturn["user"]["username"] = $curRow["username"];
+          $toReturn["user"]["email"] = $curRow["email"];
+          $toReturn["user"]["firstName"] = $curRow["first_name"];
+          $toReturn["user"]["lastName"] = $curRow["last_name"];
+          $toReturn["user"]["postalCode"] = $curRow["postal_code"];
           
           if ($includePw) {
             $toReturn["user"]["password"] = $curRow["password"];
@@ -203,6 +326,29 @@ class User {
     }
     
     return $toReturn;
+  }
+  
+  /*
+    returns true if this user exists in db, false otherwise.  "Exists" is defined
+    as a database user that matches userId, username, and email.  Leaving any
+    blank (for example, just create a user and set username) will check if
+    whether only those exist in database
+  */
+  public function existsInDb($dh) {
+    $info = $this->getDbInfo($dh);
+    return isset($info["user"]);
+  }
+  
+  /*
+    Simple function that returns whether a user has just signed up or not    
+  */
+  public function isNewUser($dh) {
+    //perhaps at some point this will be a flag in the database...for now it's
+    //just a matter of if password has ever been set or not
+    $info = $this->getDbInfo($dh, true);
+    return ($info["user"]["password"] === "");
+    //note that right now this will return false if there is an error returned
+    //from getDbInfo
   }
   
   /*loads database privileges */
@@ -244,9 +390,6 @@ class User {
       //then load privileges
       $this->loadPrivileges($dh);
       
-      //$this->id = $info["user"]["id"];
-      //$this->displayName = $info["user"]["displayName"];
-      //$this->username = $info["user"]["username"];
     }
   }
   
@@ -257,7 +400,11 @@ class User {
     $toReturn = array();
     $toReturn["id"] = $this->id_;
     $toReturn["username"] = $this->username_;
+    $toReturn["email"] = $this->email_;
     $toReturn["displayName"] = $this->displayName_;
+    $toReturn["firstName"] = $this->firstName_;
+    $toReturn["lastName"] = $this->lastName_;
+    $toReturn["postalCode"] = $this->postalCode_;
     $toReturn["privileges"] = $this->privileges_;
     return $toReturn;
   }
@@ -268,13 +415,28 @@ class User {
       switch($key) {
         case "id":
         case "user_id":
-          $this->id_ = $val;
+          //casting null to int will return 0; don't want that
+          if ($val !== null) {
+            $this->id_ = (int) $val;
+          }
           break;        
         case "username":
           $this->username_ = $val;
           break;        
+        case "email":
+          $this->email_ = $val;
+          break;        
         case "displayName":
           $this->displayName_ = $val;
+          break;        
+        case "firstName":
+          $this->firstName_ = $val;
+          break;        
+        case "lastName":
+          $this->lastName_ = $val;
+          break;        
+        case "postalCode":
+          $this->postalCode_ = $val;
           break;        
         case "privileges":
           //might be a string of comma-separated numbers, or an array
@@ -324,64 +486,77 @@ class User {
   }
   
   /*called to update info about user.  Any of the given params may be null.
-    note: pass lockPw as true and pw will be set to empty string in db,
-    which means login will fail
-      if pwIsToken is true, assumption is that curPw is reset token
+    Use scenarios:
+    * if lockPw is true, will set password in database to empty string
+    * if newPw is given, will set password in database to it, provided that either
+      curPw is given and is correct OR token is given and is correct
+    * if neither lockPw nor newPw is given, will update other attribute fields
+      
   */
-  public function CHECKupdate($curPw, $newPw, $username, $displayName,
-    $lockPw = false, $pwIsToken = false) {
-    $rd = new ReturnData();
-    $rd->json_ = array("user" => array(), "error" => null);
-
-    $userId = $this->id;
+  public function update($dh, $newPw = null, $curPw = null,
+    $lockPw = false, $token = null) {
+    
+    $jd = new JsonData();
+    $jd->set("user", array());
+    $jd->set("error", null);
+    
     $hash = ($lockPw) ? "''" : "null";//will be changed if user wants to change pw
-    
-    //$un = ($username === null) ? "null" : "'$username'";
-    //TODO: allow user to change username (email).  This should include sending
-    //a verification email so that they don't lock themselves out if they
-    //provide a bad email and then subsequently forget password
-    $un = "null";
-    $dn = ($displayName === null) ? "null" : "'$displayName'";
-    
+        
     //in order to change password, old password must be given.  other
     //fields can be changed without password being given    
-    if (($curPw !== null) && (!$lockPw)) {
+    if ((!$lockPw) && ($newPw !== null)) {
       $pwValid = false;
       //want to check that the given curPw is correct for this user.      
-      if ($pwIsToken) {
-        $pwValid = ($curPw === $this->getPasswordToken());
+      if ($token !== null) {
+        $pwValid = ($token === $this->getPasswordToken($dh));
       } else {
-        $pwValid = $this->checkPassword($curPw);
+        $pwValid = $this->checkPassword($dh, $curPw);
       }
             
       if ($pwValid) {
-        //if new password is null, do not update
-        if ($newPw !== null) {
-          $hasher = new PasswordHash();
-          $hash = "'" . $hasher->HashPassword($newPw) . "'";
-        }
+        $hasher = new PasswordHash();
+        $hash = "'" . $hasher->HashPassword($newPw) . "'";
       } else {
-        $rd->json_["error"] = "Given password is incorrect";
+        //give message according to use case
+        $jd->set("error", "Given password is incorrect");
+        if ($token !== null) {
+          $s = "Unable to set password - link may have expired.  " .
+            "Please request a new reset link and try again.";
+          $jd->set("error", $s);
+        }
       }
     }
 
-    if($rd->json_["error"] === null) {
-      //the null is for admin - can't update that by one's self
-      $s = "call update_user($userId, $un, $dn, $hash, null)";
-      $r = $this->dbh_->executeQuery($s);      
-      if ($r["result"]) {        
-        
-        //update own attributes. it's a little overkill to loadFromDb, but
-        //in case any attributes are out of date, it's easiest way
-        $this->loadFromDb();        
-        
-        $rd->json_["user"] = $this->getAttributes();
+    if($jd->get("error") === null) {
+      $userId = $this->id_;
+
+      if ($lockPw) {
+        $s = "call update_user($userId, null, null, '', null, null, null, null)";
       } else {
-        $rd->json_["error"] = "Update not successful";        
+        $username = ($this->username_ === null) ? "null" : "'$this->username_'";      
+        $email = ($this->email_ === null) ? "null" : "'$this->email_'";      
+        $dn = ($this->displayName_ === null) ? "null" : "'$this->displayName_'";      
+        $fn = ($this->firstName_ === null) ? "null" : "'$this->firstName_'";      
+        $ln = ($this->lastName_ === null) ? "null" : "'$this->lastName_'";      
+        $pc = ($this->postalCode_ === null) ? "null" : "'$this->postalCode_'";      
+        
+        $s = "call update_user($userId, $username, $email, $hash, $dn, $fn, $ln, $pc)";      
+      }
+
+      $r = $dh->executeQuery($s);      
+      if ($r["result"]) {
+        
+        //need to loadfromdb because it's possible that only one or two
+        //attribute have been updated (and are the only ones defined in 'this'
+        //object.  want to return the full user.
+        $this->loadFromDb($dh);      
+        $jd->set("user", $this->getAttributes());
+      } else {
+        $jd->set("error", "Update not successful");
       }
     }
     
-    return $rd;
+    return $jd;
   }  
   
   
@@ -394,125 +569,114 @@ class User {
   
   /*
     Adds given user to database.
-    This user must have privileges to do so
-
-    note: passing a null password will save an empty string in database, which
-    will then later require that user to reset password (once that feature is built!)
+    note: passing a null password will save an empty string in database
   
   */
-  public function add($dh, $user, $pw) {
+  public function add($dh, $pw) {
     $jd = new JsonData();
     $jd->set("error", null);
     $jd->set("user", null);
     
-    if ($this->hasPrivilege(UserPrivilege::ADD_USER)) {
+    $username = $this->username_;
+    $email = $this->email_;
+    $hash = "";
+    
+    $emailCheck = new User(array("email" => $email));
+    $usernameCheck = new User(array("username" => $username));
+    
+    if (($username === null) || ($email === null)) {
+      $jd->set("error", "Must specify username and email");
+    } else if ($usernameCheck->existsInDb($dh) || ($emailCheck->existsInDb($dh))) {
+      $jd->set("error", "Username or email already in use");
+    }
+    else {
+    
+      if ($pw !== null) {
+        $hasher = new PasswordHash();
+        $hash = $hasher->HashPassword($pw);
+      }
+            
+      $s = "call add_user('$username', '$email', '$hash')";
+      $r = $dh->executeQuery($s);
       
-      //TODO: check that username is valid email.  displayname not null?      
-      $attr = $user->getAttributes();
-      $username = $attr["username"];
-      $displayName = $attr["displayName"];
-      $hash = "";
-      
-      if (($username === null) || ($displayName === null)) {
-        $jd->set("error", "Must specify username and display name");
+      if ($r["result"]) {
+        //should be only one row - it will contain the newly-added user id.        
+        $curRow = $r["result"]->fetch_assoc();
+
+        //the only privilege a new user has is to add a comment
+        $this->setAttributes(array(
+          "id" => (int) $curRow["user_id"],
+          "privileges" => array(UserPrivilege::ADD_OBSERVATION)));
+
+        $this->savePrivilegesToDb($dh);
+        
+        $jd->set("user", $this->getAttributes());
+                
       } else {
-      
-        if ($pw !== null) {
-          $hasher = new PasswordHash();
-          $hash = $hasher->HashPassword($pw);
-        }
-              
-        $s = "call add_user('$username', '$displayName', '$hash')";
-        $r = $dh->executeQuery($s);
-        
-        if ($r["result"]) {
-          //should be only one row - it will contain the newly-added user id.        
-          $curRow = $r["result"]->fetch_assoc();
-          
-          $user->setAttributes(array("id" => (int) $curRow["user_id"]));
-          
-          //now add privileges
-          $user->savePrivilegesToDb($dh);
-          
-          //$user->loadFromDb($dh);
-          $jd->set("user", $user->getAttributes());
-                  
-        } else {
-          $jd->set("error", "Unable to add user to database");
-        }
-        
+        $jd->set("error", "Unable to add user to database");
       }
       
-      
-    } else {
-      $jd->set("error", "Current user does not have authority to add a new user");
     }
     return $jd;
   }  
   
   /*helper function that saves current privileges to database*/
   private function savePrivilegesToDb($dh) {
-    //easiest to first remove all privileges then add current ones back
+  //easiest to first remove all privileges then add current ones back
     $s = "call delete_user_privilege($this->id_)";
     $dh->executeQuery($s);
-
     foreach($this->privileges_ as $key => $val) {
-      //$r["result"]->free();
-      $s = "call add_user_privilege($this->id_, $key)";
+      $s = "call add_user_privilege($this->id_, $val)";
       $r = $dh->executeQuery($s);
     }
   
   }
 
   
-  /*called when user has forgotten password.  generates a token and also resets
+  /*called when user has forgotten password or when user is first created.
+  generates a token and resets
   password in user database.  returns token on success or error message on failure*/
-  public function CHECKresetPassword() {
+  public function resetPassword($dh) {
     $toReturn = array("error" => null, "token" => null);
     //first need to load self from db, as it's likely that the only known
-    //attribute is username, and need user_id to update
-    $this->loadFromDb();
-    if ($this->id) {
-      $rd = $this->update(null, null, null, null, true); //reset password
+    //attribute is email, and need user_id to update
+    $this->loadFromDb($dh);
+    
+    if ($this->id_) {
+      $jd = $this->update($dh, null, null, true, null); //lock password
       
-      if (!$rd->json_["error"]) {
-        //get rid of previous tokens.  Is this desired behavior?  Could consider
-        //preventing user from making another request?  Or return existing token?
-        $this->deletePasswordToken();
+      if (!$jd->get("error")) {
+        //remove previous tokens
+        $this->deletePasswordToken($dh);
         
         $hasher = new PasswordHash();
         $token = bin2hex($hasher->get_random_bytes(32));
-        $id = $this->id;
 
-        $s = "call add_password_token($id, '$token')";
-        $r = $this->dbh_->executeQuery($s);
-        //want to make sure it worked
+        $s = "call add_pwtoken($this->id_, '$token')";
+        $r = $dh->executeQuery($s);
         if ($r["error"]) {
           $toReturn["error"] = "Error generating token: " . $r["error"];
         } else {
           $toReturn["token"] = $token;
         }
-        
       
       } else {
         $toReturn["error"] = "Unable to reset user password";
       }
       
-      
     } else {
-      $toReturn["error"] = "Unable to reset password";
+      $toReturn["error"] = "Unable to reset password - no associated account";
     }
     
     return $toReturn;
   }
   
   /*returns temporary password token for user on success or null on failure*/
-  private function CHECKgetPasswordToken() {
+  private function getPasswordToken($dh) {
     $token = null;
     
-    $id = $this->id;
-    $s = "call get_password_token($id)";
-    $r = $this->dbh_->executeQuery($s);
+    $s = "call get_pwtoken($this->id_)";
+    $r = $dh->executeQuery($s);
     if ($r["result"]) {
       $curRow = $r["result"]->fetch_assoc();
       $token = $curRow["token"]; //may be null      
@@ -523,9 +687,9 @@ class User {
   
   /*attempts to delete password token from database.  returns true on success
   and false otherwise*/
-  public function CHECKdeletePasswordToken() {    
-    $s = "call delete_password_token('" . $this->id . "')";
-    $r = $this->dbh_->executeQuery($s);
+  public function deletePasswordToken($dh) {    
+    $s = "call delete_pwtoken($this->id_)";
+    $r = $dh->executeQuery($s);
     return ($r["error"] === null);
     
   }

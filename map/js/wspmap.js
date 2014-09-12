@@ -2,44 +2,126 @@
 /*global  wsp, google, console*/
 "use strict";
 
+/*Application is what is running and holds map, pages, etc.
+  It's a little ugly right now because of how the code evolved - would be ideal
+  to have map be initialized right away but instead it waits until the 
+  google map loads and then map is set elsewhere.  Should change that around someday
+  But the map is so tightly integrated with the google map that it can't do
+  much without it
 
-wsp.Map = function () {
+*/
+wsp.Application = function () {
+  this.map = null;
+  this.user = null;
 
-  //following are the private variables for Map
-  this.dataUrl = "data/";
-       
+  //set init val for user
+  var val = this.getSetting(this.Settings.user);
+  //what will have been saved is the attributes, not functions.  easier to
+  //just create a new user than to bother serializing the functions
+  if (val) {
+    this.user = new wsp.User({dbUser: {id: val.id,
+      username: val.username,
+      email: val.email,
+      displayName: val.displayName,
+      firstName: val.firstName,
+      lastName: val.lastName,
+      postalCode: val.postalCode,
+      privileges: val.privileges}});
+  }
+  
+};
+
+wsp.Application.prototype.Settings = {
+  showLocation: {name: "show-location"},
+  showMinetta: {name: "show-minetta"},
+  user: {name: "logged-in-user", session: true}, //save user in session, not local
+  layers: {name: "visible-layers"} //save the ids that are to be visible
+};
+
+wsp.Application.prototype.Constants = {
+  DEFAULT_LAYER_ID: 1, //unlikely to change in database, but possible
+  DATA_URL : "data/" //for ajax requests
+};
+
+
+/*
+  returns setting indicated by key
+*/
+wsp.Application.prototype.getSetting = function (setting) {
+  var obj = null;
+  var storage = (setting.session) ? window.sessionStorage : window.localStorage;
+  if (storage) {
+    obj = JSON.parse(storage.getItem(setting.name));
+  }
+  return obj;
+
+};
+
+/*
+  Saves given object in setting (a wsp.Application.Settings) .
+  stores in storage and may also take additional action
+*/
+wsp.Application.prototype.setSetting = function (setting, obj) {
+  var storage = (setting.session) ? window.sessionStorage : window.localStorage;
+  
+  if (storage) {
+    storage.setItem(setting.name, JSON.stringify(obj));
+  }
+  //now take additional action to update current state of program
+  switch (setting) {
+    case this.Settings.showLocation:
+      if (this.map) {
+        this.map.locationControl.setVisibility(obj);
+      }
+      break;
+    case this.Settings.showMinetta:
+      if (this.map) {
+        this.map.minettaOverlay.setVisibility(obj);
+      }
+      break;
+    case this.Settings.user:
+      this.user = obj;
+      if (this.map) {
+        this.map.optionMenu.onLoginChange(this.user);
+      }
+      break;
+    case this.Settings.layers:
+      if (this.map) {
+        this.map.layerManager.setVisibleLayers(obj);
+      }
+      break;
+    default:
+      //do nothing
+  }
+  
+};
+
+/*Create a new map, passing a google maps baseMap*/
+wsp.Map = function (baseMap) {
+  wspApp.map = this; //this is a little hokey but quick and dirty way for
+  
+  this.baseMap = baseMap;
   var that = this;
   function selfInit() {
     //set up default settings.
-    var settings = wsp.Map.Setting;
-    var val = that.getSetting(settings.showLocation);
+    var settings = wspApp.Settings;
+    var val = wspApp.getSetting(settings.showLocation);
     val = (val === null) ? true : val; //show location by default
-    that.setSetting(settings.showLocation, val); //set in case it wasn't
+    wspApp.setSetting(settings.showLocation, val); //set in case it wasn't
     
     //do the same for minetta creek, though the default is false
-    val = that.getSetting(settings.showMinetta);
+    val = wspApp.getSetting(settings.showMinetta);
     val = (val === null) ? false : val;
-    that.setSetting(settings.showMinetta, val);
+    wspApp.setSetting(settings.showMinetta, val);
 
-    val = that.getSetting(settings.user);
-    //what will have been saved is the attributes, not functions.  easier to
-    //just create a new user than to bother serializing the functions
-    if (val) {
-      that.user = new wsp.User({dbUser: {id: val.id,
-        displayName: val.displayName,
-        username: val.username,
-        privileges: val.privileges}});
-    }
-    that.optionMenu.onLoginChange(that.user); //update menu
+    that.optionMenu.onLoginChange(wspApp.user); //update menu
     
     //set visible layers.  by default, turn on only default layer
-    val = that.getSetting(settings.layers) || [wspApp.constants.DEFAULT_LAYER_ID];
+    val = wspApp.getSetting(settings.layers) || [wspApp.Constants.DEFAULT_LAYER_ID];
     
-    that.setSetting(settings.layers, val);
+    wspApp.setSetting(settings.layers, val);
     
   };
-
-  
   
   this.locationControl = null;
   this.symbolManager = new wsp.SymbolManager();
@@ -61,7 +143,7 @@ wsp.Map = function () {
   
   this.optionMenu = new wsp.OptionMenu(this.panels.login);
   
-  this.minettaOverlay = new wsp.MinettaOverlay(this.panels.message);
+  this.minettaOverlay = new wsp.MinettaOverlay(this, this.panels.message);
 
   //settings panel needs to know when layers have arrived from server
   google.maps.event.addListener(this.layerManager, "layersloaded", function(layers){
@@ -69,11 +151,11 @@ wsp.Map = function () {
   });
   
   //set up location control this after panels are set up
-  this.locationControl = new wsp.LocationControl();
+  this.locationControl = new wsp.LocationControl(this);
 
   
   //set up marker clusterer
-  this.markerClusterer = new MarkerClusterer(wspApp.baseMap, null, 
+  this.markerClusterer = new MarkerClusterer(this.baseMap, null, 
     {maxZoom: 19,
     gridSize: 40,
     styles: [
@@ -86,7 +168,7 @@ wsp.Map = function () {
     });
   
     
-  this.listener = new wsp.TapholdListener(wspApp.baseMap, {context: this});
+  this.listener = new wsp.TapholdListener(this.baseMap, {context: this});
   google.maps.event.addListener(this, "taphold", function(e) {
     //a taphold by a user with privilege allows a tree to be added.
     //note that we add the tree on the mouseup following the taphold because
@@ -107,10 +189,10 @@ wsp.Map = function () {
     if(this.hadTap) {
       var t = new wsp.Tree({
         position: {lat: e.latLng.lat(), lng: e.latLng.lng()},
-        map: wspApp.baseMap,
+        map: this.baseMap,
         taxonId: 1, //should be unknown
         dbh: 0,
-        layers: this.getSetting(wsp.Map.Setting.layers) //belong to currently-visible layers
+        layers: this.getSetting(wspApp.Settings.layers) //belong to currently-visible layers
       });
       t.save()
         .fail(function(jqXHR, textStatus, errorThrown) {
@@ -129,7 +211,7 @@ wsp.Map = function () {
   
   /*called to get trees, taxon, and layer info to start*/
   this.requestInitialData = function () {
-    var jqxhr = $.ajax({url: this.dataUrl,
+    var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
                         data: {verb: "get", noun: "initial-data"},
                         dataType: "json",
                         context: this})    
@@ -146,7 +228,7 @@ wsp.Map = function () {
           $.each(data.trees, function(index, tree) {
             var t = new wsp.Tree({
               position: {lat: tree.lat, lng: tree.lng},
-              map: wspApp.baseMap,
+              map: that.baseMap,
               taxonId: tree.taxonId,
               dbh: tree.dbh,
               id: tree.id,
@@ -157,7 +239,7 @@ wsp.Map = function () {
           });
 
           //after trees are loaded, need to set which are visible
-          this.layerManager.setVisibleLayers(wspApp.map.getSetting(wsp.Map.Setting.layers));
+          this.layerManager.setVisibleLayers(wspApp.getSetting(wspApp.Settings.layers));
                     
         })
         .fail(function(jqXHR, textStatus, errorThrown) {
@@ -171,61 +253,9 @@ wsp.Map = function () {
         });
     
   };
-  
-  /*
-    returns setting indicated by key
-  */
-  this.getSetting = function (setting) {
-    var obj = null;
-    var storage = (setting.session) ? window.sessionStorage : window.localStorage;
-    if (storage) {
-      obj = JSON.parse(storage.getItem(setting.name));
-    }
-    return obj;
-
-  };
-  
-  /*
-    Saves given object in setting (a wsp.Map.Setting) .
-    stores in storage and may also take additional action
-  */
-  this.setSetting = function (setting, obj) {
-    var storage = (setting.session) ? window.sessionStorage : window.localStorage;
     
-    if (storage) {
-      storage.setItem(setting.name, JSON.stringify(obj));
-    }
-    //now take additional action to update current state of program
-    switch (setting) {
-      case wsp.Map.Setting.showLocation:
-        this.locationControl.setVisibility(obj);
-        break;
-      case wsp.Map.Setting.showMinetta:
-        this.minettaOverlay.setVisibility(obj);
-        break;
-      case wsp.Map.Setting.user:
-        this.user = obj;
-        this.optionMenu.onLoginChange(this.user);
-        break;
-      case wsp.Map.Setting.layers:
-        this.layerManager.setVisibleLayers(obj);
-        break;
-      default:
-        //do nothing
-    }
-    
-  };
-  
   selfInit();
 }; //wsp.Map
-
-/*collection of settings*/
-wsp.Map.Setting = {
-  showLocation: {name: "show-location"},
-  showMinetta: {name: "show-minetta"},
-  user: {name: "logged-in-user", session: true}, //save user in session, not local
-  layers: {name: "visible-layers"} //save the ids that are to be visible
-};
 
 
 /*class that lets map interact with layers*/
@@ -277,10 +307,6 @@ wsp.LayerManager.prototype.onLayersReceived = function(jsonLayers) {
   
   //let any interested parties know that layers have been received
   google.maps.event.trigger(this, "layersloaded", this.layers);
-
-  //update to whatever layers are visible
-  //this.setVisibleLayers(wspApp.map.getSetting(wsp.Map.Setting.layers));
-  
 };
 
 /*
@@ -312,7 +338,7 @@ wsp.LayerManager.prototype.updateTree = function(tree) {
   //simplest thing to do is first remove from all then add back in
   this.removeTree(tree);
   this.addTree(tree);
-  tree.setVisibility(wspApp.map.getSetting(wsp.Map.Setting.layers));
+  tree.setVisibility(wspApp.getSetting(wspApp.Settings.layers));
   wspApp.map.markerClusterer.repaint();
 };
 
@@ -592,7 +618,7 @@ wsp.Tree.prototype.onMouseUp = function () {
   Called when user taps and holds (long clicks) on a tree's marker
 */
 wsp.Tree.prototype.onTapHold = function () {
-  var user = wspApp.map.user;
+  var user = wspApp.user;
   if (!this.isMovable && user && user.hasPrivilege(wsp.UserPrivilege.UPDATE_TREE)) {
     this.setMovable(true);
     
@@ -637,7 +663,7 @@ wsp.Tree.prototype.save = function(vals) {
   
   //if tree doesn't have an id, want to add a new tree
   var verb = (this.id === -1) ? "add" : "update";
-  var jqxhr = $.ajax({url: wspApp.map.dataUrl,
+  var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
                       data: {verb: verb, noun: "tree",
                       treeid: this.id,
                       taxonid: vals.taxonId || this.taxonId,
@@ -671,9 +697,9 @@ wsp.Tree.prototype.save = function(vals) {
   Deletes given tree from database.  "delete" is keyword, so use this instead
 */
 wsp.Tree.prototype.remove = function () {
-  var user = wspApp.map.user;
+  var user = wspApp.user;
   if (user && user.hasPrivilege(wsp.UserPrivilege.DELETE_TREE)) {
-    $.ajax({url: wspApp.map.dataUrl,
+    $.ajax({url: wspApp.Constants.DATA_URL,
           data: {verb: "delete", noun: "tree",
             treeid: this.id},
           dataType: "json",
@@ -868,7 +894,11 @@ wsp.User = function (opts) {
   opts.dbUser = opts.dbUser || {};
   this.id = opts.dbUser.id || -1;
   this.username = opts.dbUser.username;
+  this.email = opts.dbUser.email;
   this.displayName = opts.dbUser.displayName;
+  this.firstName = opts.dbUser.firstName;
+  this.lastName = opts.dbUser.lastName;
+  this.postalCode = opts.dbUser.postalCode;
   this.privileges = opts.dbUser.privileges;
   
   /*returns true if user has given privilege*/
@@ -903,7 +933,7 @@ wsp.UserPrivilege = {
 */
 wsp.LocationControl = function(map) {
   this.map = map;
-  this.baseMap = wspApp.baseMap;
+  this.baseMap = map.baseMap;
 
   if (window.navigator && navigator.geolocation) {
     this.indexInMap = -1; //where in google map's control array this control is
@@ -986,7 +1016,7 @@ wsp.LocationControl = function(map) {
 
 /*set whether or not can see this control (user dot and control icon)*/
 wsp.LocationControl.prototype.setVisibility = function (isVisible) {
-  this.baseMap = (isVisible) ? wspApp.baseMap : null;
+  this.baseMap = (isVisible) ? this.map.baseMap : null;
   this.userLocation.setMap(this.baseMap);
   this.accuracyCircle.setMap(this.baseMap);
   
@@ -994,10 +1024,10 @@ wsp.LocationControl.prototype.setVisibility = function (isVisible) {
   if (isVisible && (this.indexInMap) === -1) {
     //pushign returns the length of array; subtract one to get index
     this.indexInMap =
-      wspApp.baseMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(this.containerDiv[0]) -1;
+      this.map.baseMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(this.containerDiv[0]) -1;
   } else if (!isVisible && (this.indexInMap > -1)) {
-    //want to hide.  use wspApp.baseMap b/c this.baseMap is null at this point
-    wspApp.baseMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].removeAt(this.indexInMap);
+    //want to hide.  use this.map.baseMap b/c this.baseMap is null at this point
+    this.map.baseMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].removeAt(this.indexInMap);
     this.indexInMap = -1;
   }
   
@@ -1014,7 +1044,7 @@ wsp.LocationControl.prototype.startWatching = function() {
 };
 
 wsp.LocationControl.prototype.jumpToUser = function(position) {
-  console.log("jumptouser '" + this.watchID + "'");
+  //console.log("jumptouser '" + this.watchID + "'");
   
   this.suppressErrorMessage = true;
   //relies on HTML5
@@ -1039,9 +1069,6 @@ wsp.LocationControl.prototype.setUserLocation = function (opts) {
     this.userLocation.setPosition(opts.position);
     this.accuracyCircle.setCenter(opts.position);
     this.accuracyCircle.setRadius(opts.accuracy);
-    //TODO: re-arrange setMap so it only needs to be called once
-    //this.userLocation.setMap(this.baseMap);
-    //this.accuracyCircle.setMap(this.baseMap);
     
     if (opts.moveMap && this.baseMap) { //basemap may be null, so don't jump
       this.baseMap.panTo(opts.position);
@@ -1053,7 +1080,7 @@ wsp.LocationControl.prototype.setUserLocation = function (opts) {
 
 wsp.LocationControl.prototype.onPositionUpdate = function (position) {
   var s = "watch position: " + position.coords.latitude + "," + position.coords.longitude;
-  console.log(s);
+  //console.log(s);
   
   this.isWatching = true;
   
@@ -1117,9 +1144,9 @@ wsp.CommentManager.prototype.saveComment = function (comment) {
   if (comment.text) {
     //adding or updating depends on whether comment has an id
     var verb = (comment.id) ? "update" : "add";
-    var uid = (wspApp.map.user) ? wspApp.map.user.id : -1;
+    var uid = (wspApp.user) ? wspApp.user.id : -1;
     
-    $.ajax({url: wspApp.map.dataUrl,
+    $.ajax({url: wspApp.Constants.DATA_URL,
             data: {verb: verb, noun: "observation",
               observationid: comment.id, //will be null for add
               comments: comment.text,
@@ -1154,7 +1181,7 @@ wsp.CommentManager.prototype.saveComment = function (comment) {
   Deletes given comment from database
 */
 wsp.CommentManager.prototype.deleteComment = function (comment) {
-  $.ajax({url: wspApp.map.dataUrl,
+  $.ajax({url: wspApp.Constants.DATA_URL,
         data: {verb: "delete", noun: "observation",
         observationid: comment.id},
         dataType: "json",
@@ -1184,7 +1211,7 @@ wsp.CommentManager.prototype.load = function (tree) {
     this.add(this.newComment);
     
     
-    $.ajax({url: wspApp.map.dataUrl,
+    $.ajax({url: wspApp.Constants.DATA_URL,
             data: {verb: "get", noun: "observation",
             treeid: tree.id},
             dataType: "json",
@@ -1290,7 +1317,7 @@ wsp.Comment = function(manager, opts) {
     
     //if comment isn't new, want to allow user to cancel editing and possibly delete
     var that = this;
-    var user = wspApp.map.user;
+    var user = wspApp.user;
     var showCancel = this.id;    
     var showDelete = showCancel && user &&
         ((user.id === this.userId) || (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)));
@@ -1382,7 +1409,7 @@ wsp.Comment = function(manager, opts) {
         
         display.dom.on("click", $.proxy(function(){
           //only open to allow edit if user has permissions
-          user = wspApp.map.user;
+          user = wspApp.user;
           if (user && ((user.id === this.userId) ||
                        (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)))) {
             this.refresh({allowEdit: true});  
@@ -1478,7 +1505,8 @@ wsp.TapholdListener.prototype.remove = function () {
 };
 
 /*object that can show/hide minetta creek*/
-wsp.MinettaOverlay = function (msgPanel) {
+wsp.MinettaOverlay = function (map, msgPanel) {
+  this.map = map;
   this.messagePanel = msgPanel;
   this.centerPoly = null;
   this.boundaryPoly = null;
@@ -1624,7 +1652,7 @@ wsp.MinettaOverlay.prototype.setVisibility = function (isVisible) {
   }
   
   if (this.centerPoly) {
-    var map = (isVisible) ? wspApp.baseMap : null;
+    var map = (isVisible) ? this.map.baseMap : null;
     this.centerPoly.setMap(map);
     this.boundaryPoly.setMap(map);
   }

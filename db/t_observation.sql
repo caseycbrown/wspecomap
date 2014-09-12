@@ -10,12 +10,16 @@ create table if not exists observation (
   tree_id int not null,
   comments varchar(200) default null,
   date_created datetime not null,
-  user_id int default null,
+  user_id int not null,
   
   primary key (observation_id),
   
   constraint fk_observation__tree_id
     foreign key (tree_id)
-    references tree (tree_id)
+    references tree (tree_id),
+    
+  constraint fk_observation__user_id
+    foreign key (user_id)
+    references users (user_id)
   
 ) engine=innodb  default charset=utf8 auto_increment=1 ;
