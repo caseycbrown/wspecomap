@@ -178,9 +178,9 @@ wsp.Map = function (baseMap) {
     //I suspect this has something to do with timing and google events.  Can
     //look into it more later when I have more time...for now, the following
     //mouseup workaround is okay
-    
+
     //called when user does a taphold on the map
-    this.hadTap = this.user && this.user.hasPrivilege(wsp.UserPrivilege.ADD_TREE);
+    this.hadTap = wspApp.user && wspApp.user.hasPrivilege(wsp.UserPrivilege.ADD_TREE);
     
   });
   google.maps.event.addListener(this, "mouseup", function(e) {
@@ -192,7 +192,7 @@ wsp.Map = function (baseMap) {
         map: this.baseMap,
         taxonId: 1, //should be unknown
         dbh: 0,
-        layers: this.getSetting(wspApp.Settings.layers) //belong to currently-visible layers
+        layers: wspApp.getSetting(wspApp.Settings.layers) //belong to currently-visible layers
       });
       t.save()
         .fail(function(jqXHR, textStatus, errorThrown) {
@@ -912,18 +912,13 @@ wsp.User = function (opts) {
   UserPrivilege values need to match those in database
 */
 wsp.UserPrivilege = {
-  ADD_USER: 1,     //add new user
-  MODIFY_USER: 2,  //modify users other than self
-  DELETE_USER: 3,  //delete users other than self
-  ADD_TREE: 4,
-  UPDATE_TREE: 5,
-  DELETE_TREE: 6,
-  ADD_TAXON: 7,
-  UPDATE_TAXON: 8,
-  DELETE_TAXON: 9,
-  ADD_COMMENT: 10,
-  UPDATE_COMMENT: 11,
-  DELETE_COMMENT: 12
+  MODIFY_USER: 1,  //modify users other than self
+  ADD_TREE: 2,
+  UPDATE_TREE: 3,
+  DELETE_TREE: 4,
+  ADD_TAXON: 5,
+  ADD_COMMENT: 6,
+  MODIFY_COMMENT: 7
 };
 
 
@@ -1320,7 +1315,7 @@ wsp.Comment = function(manager, opts) {
     var user = wspApp.user;
     var showCancel = this.id;    
     var showDelete = showCancel && user &&
-        ((user.id === this.userId) || (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)));
+        ((user.id === this.userId) || (user.hasPrivilege(wsp.UserPrivilege.MODIFY_COMMENT)));
 //console.log("user is ");
 //console.log(user);
 //console.log("showcancel: " + showCancel + " and delete: " + showDelete);
@@ -1411,7 +1406,7 @@ wsp.Comment = function(manager, opts) {
           //only open to allow edit if user has permissions
           user = wspApp.user;
           if (user && ((user.id === this.userId) ||
-                       (user.hasPrivilege(wsp.UserPrivilege.DELETE_COMMENT)))) {
+                       (user.hasPrivilege(wsp.UserPrivilege.MODIFY_COMMENT)))) {
             this.refresh({allowEdit: true});  
           }
         }, this));

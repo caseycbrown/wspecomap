@@ -12,12 +12,14 @@ begin
     users (      
       email,
       username,
-      password
+      password,
+      is_verified
     )
   values (    
     in_email,
     in_username,
-    in_password
+    in_password,
+    0
   );
 	
   select last_insert_id() as user_id;

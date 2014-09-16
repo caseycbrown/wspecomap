@@ -9,58 +9,64 @@ include_once "./php/manager.php";
 class ObservationManager extends Manager{
 
   public function __construct() {
-    $this->updatePriv_ = UserPrivilege::UPDATE_OBSERVATION;
+    $this->updatePriv_ = UserPrivilege::MODIFY_OBSERVATION;
     $this->addPriv_ = UserPrivilege::ADD_OBSERVATION;
-    $this->deletePriv_ = UserPrivilege::DELETE_OBSERVATION;
+    $this->deletePriv_ = UserPrivilege::MODIFY_OBSERVATION;
     $this->objName_ = "observation";
   
   }
-  
-  /*
-    overrides manager's implementation because of a slight change in how observation
-    privileges differ
+   
+   /*add needs to include user*/
+  protected function add($dh, $obj, $user) {
+    $jd = new JsonData();    
+    if ($user->hasPrivilege($this->addPriv_)) {
+      $jd = $obj->add($dh, $user);
+    } else {
+      $jd->set("error", "User does not have permission to add $this->objName_");
+    }
+    return $jd;
+  }
+
+  /*for update and delete, check if user has privilege update anyone's observations
+  or if this observation belongs to user (even if user doesn't have that privilege)
   */
-  public function processRequest($dh) {
-    //user can delete
-    $jd = parent::processRequest($dh);
-    
-    //if action is delete or update AND the request has been denied because user
-    //does not have proper permisisons, we might still continue.  This is because
-    //the privilege check determines if the user is allowed to update or delete
-    //*any* observations.  If a user does not have that global ability the request
-    //will have been denied even for that user's own observations.
-    //So, long story short, need to check to see if the observation is one that
-    //the user created
-    $verb = $dh->getParameter("verb");
-    
-    if ((($verb === "update") || ($verb==="delete")) &&
-      (substr($jd->get("error"), 0, 29) === "User does not have permission")) {
-      
-      $obs = $this->createObjectFromRequest($dh);
-      //want to check this observation from database to verify user
-      
-      $id = $obs->getAttributes()["id"];
-      $s = "call get_observation($id, null, null, null, null)";
-      
-      
-      $test = $this->find($dh, array("sql" => $s, "jsonName" => "observation"));
-      $dbObs = new Observation($test->get("observation")[0]);
-      
-      $user = $this->getLoggedInUser();
-      
-      if ($dbObs->getAttributes()["userId"] === $user->getAttributes()["id"]) {
-        //permit the updating or deleting
-        if ($verb === "update") {
-          $jd = $obs->update($dh);
-        } else if ($verb === "delete") {
-          $jd = $obs->delete($dh);
-        }
-      }
-      
-      
+  protected function update($dh, $obj, $user) {
+    $jd = new JsonData();
+    $canProceed = $user->hasPrivilege($this->updatePriv_);
+    if (!$canProceed) {
+      $obs = $this->getObservationFromDb($dh, $obj->getAttributes()["id"]);
+      $canProceed = ($obs->getAttributes()["userId"] === $user->getAttributes()["id"]);
     }
     
+    if ($canProceed) {
+      $jd = $obj->update($dh);
+    } else {
+      $jd->set("error", "User does not have permission to update $this->objName_");
+    }
     return $jd;
+  }
+  
+  protected function delete($dh, $obj, $user) {
+    $jd = new JsonData();    
+    $canProceed = $user->hasPrivilege($this->updatePriv_);
+    if (!$canProceed) {
+      $obs = $this->getObservationFromDb($dh, $obj->getAttributes()["id"]);
+      $canProceed = ($obs->getAttributes()["userId"] === $user->getAttributes()["id"]);
+    }
+    
+    if ($canProceed) {
+      $jd = $obj->delete($dh);
+    } else {
+      $jd->set("error", "User does not have permission to delete $this->objName_");
+    }
+    return $jd;
+  }
+
+  /*returns observation with given id*/
+  private function getObservationFromDb($dh, $obsId) {
+    $s = "call get_observation($obsId, null, null, null, null)";
+    $test = $this->find($dh, array("sql" => $s, "jsonName" => "observation"));
+    return new Observation($test->get("observation")[0]);  
   }
  
   /*

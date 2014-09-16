@@ -52,6 +52,8 @@
             <li class="login"><a href="#" class="option login" data-option="login">Login</a></li>
             <li class="profile"><a href="#user-profile" class="option"
               data-option="profile">My Profile</a></li>
+            <li class="admin"><a href="#admin-user" class="option"
+              data-option="profile">Admin</a></li>
             <li><a href="#" class="option" data-option="settings">Settings</a></li>
             <li><a href="#map-about">About</a></li>
           </ul>
@@ -343,7 +345,7 @@
         <h1>WSP Profile</h1>        
       </div>
       <div role="main" class="ui-content">
-        <h3 class="panel-heading">Your profile</h3>
+        <h3 class="panel-heading username">Your profile</h3>
         
         <label class="panel-descriptor">Display Name</label>
         <input class="display-name" value="" placeholder="Enter Display Name"
@@ -380,6 +382,40 @@
         <br>
         <button type="button" class="submit ui-btn ui-corner-all ui-mini ui-btn-a">
           Update Profile</button>
+        <button type="button"
+            class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
+        
+      </div>
+    </div>
+
+    <div data-role="page" id="admin-user" data-title="User Admin" data-theme="b">
+      <div data-role="header" data-position="fixed">
+        <h1>WSP User Admin</h1>        
+      </div>
+      <div role="main" class="ui-content">
+        <h3 class="panel-heading">something to say</h3>
+        
+        <ul class="user" data-role="listview" data-inset="true"
+          data-filter="true" data-filter-placeholder="Find a user..."
+          data-filter-theme="a"></ul>
+
+          
+        <div data-role="collapsible" data-mini="true" data-collapsed-icon="carat-d"
+          data-expanded-icon="carat-u">
+          <h4>Privileges <span class="user"></span></h4>
+          <ul class="privileges" data-role="listview" data-inset="true">
+          </ul>
+        
+        </div>
+
+          
+
+          
+        <label class="error"></label>
+          
+        <br>
+        <button type="button" class="submit ui-btn ui-corner-all ui-mini ui-btn-a">
+          Update User</button>
         <button type="button"
             class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
         

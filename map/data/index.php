@@ -13,6 +13,7 @@ include_once "./php/tree.php";
 include_once "./php/taxon.php";
 include_once "./php/observation.php";
 include_once "./php/layer.php";
+include_once "./php/privilege.php";
 include_once "./php/user.php";
 
 
@@ -42,6 +43,9 @@ try {
       break;
     case "layer":
       $manager = new LayerManager();
+      break;
+    case "privilege":
+      $manager = new PrivilegeManager();
       break;
     case "user":
       $manager = $um;

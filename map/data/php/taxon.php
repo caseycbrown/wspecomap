@@ -9,9 +9,9 @@ include_once "./php/manager.php";
 class TaxonManager extends Manager{
   
   public function __construct() {
-    $this->updatePriv_ = UserPrivilege::UPDATE_TAXON;
+    $this->updatePriv_ = -1; //UserPrivilege::UPDATE_TAXON;
     $this->addPriv_ = UserPrivilege::ADD_TAXON;
-    $this->deletePriv_ = UserPrivilege::DELETE_TAXON;
+    $this->deletePriv_ = -1; //UserPrivilege::DELETE_TAXON;
     $this->objName_ = "taxon";
   }
 

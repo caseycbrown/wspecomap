@@ -6,14 +6,15 @@ class Mailer {
   /*tries to send first with Pear (to use SMTP server) and then by default*/
   public function send($to, $subject, $body) {        
     
-    $success = $this->sendWithPear($to, $subject, $body);  
-
+    //$success = $this->sendWithPear($to, $subject, $body);  
+    $success = $this->sendWithDefault($to, $subject, $body);  
+    
     //TODO: i don't presently have SMTP info for this site, so use default only
     //$success = false;
     
     if (!$success) {
-      //$success = $this->sendWithPear($to, $subject, $body . "(pear)");  
-      $success = $this->sendWithDefault($to, $subject, $body);  
+      $success = $this->sendWithPear($to, $subject, $body);  
+      //$success = $this->sendWithDefault($to, $subject, $body);  
     }
     
     return $success;

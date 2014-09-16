@@ -16,7 +16,8 @@ begin
     display_name,    
     first_name,
     last_name,
-    postal_code
+    postal_code,
+    is_verified
 	from
     users
 	where				

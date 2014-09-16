@@ -9,9 +9,9 @@ include_once "./php/manager.php";
 class LayerManager extends Manager{
   
   public function __construct() {
-    $this->updatePriv_ = UserPrivilege::UPDATE_LAYER;
-    $this->addPriv_ = UserPrivilege::ADD_LAYER;
-    $this->deletePriv_ = UserPrivilege::DELETE_LAYER;
+    $this->updatePriv_ = -1; //UserPrivilege::UPDATE_LAYER;
+    $this->addPriv_ = -1; //UserPrivilege::ADD_LAYER;
+    $this->deletePriv_ = -1; // UserPrivilege::DELETE_LAYER;
     $this->objName_ = "layer";
   }
 

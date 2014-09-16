@@ -12,8 +12,9 @@ class UserManager extends Manager{
 
   public function __construct() {
     $this->updatePriv_ = UserPrivilege::MODIFY_USER;
-    $this->addPriv_ = UserPrivilege::ADD_USER;
-    $this->deletePriv_ = UserPrivilege::DELETE_USER;
+    //for now, set to values that don't exist in database so that these can't happen
+    $this->addPriv_ = -1; //UserPrivilege::ADD_USER;
+    $this->deletePriv_ = -1; //UserPrivilege::DELETE_USER;
     $this->objName_ = "user";
   
   }
@@ -102,6 +103,8 @@ class UserManager extends Manager{
         break;
       case "signup":
         $jd = $user->add($dh, $dh->getParameter("password"));
+        //want to consider this user as logged-in
+        $this->saveToSession($user);
         break;
       case "changepw":
         //user either needs to be logged in or must provide token
@@ -114,7 +117,6 @@ class UserManager extends Manager{
         }
         
         if ($user) {
-          $tmp = $user->getAttributes();
           $jd = $user->update($dh, $newPw, $curPw, false, $token);        
           
           if (!$jd->get("error")) {
@@ -123,7 +125,6 @@ class UserManager extends Manager{
             $jd->set("user", $user->getAttributes());
             $user->deletePasswordToken($dh);
           }
-          
           
         } else {
           $jd->set("error", "Unable to change password");
@@ -169,11 +170,46 @@ class UserManager extends Manager{
     return array("error" => "Cannot find users");    
   }
   /*
-    override find functionality for now - do not want to be able to search
-    for users
+    override find functionality - do not want to be able to search
+    unless have proper permissions
   */
   protected function find($dh, $info) {
-    return array("error" => "Cannot find users");    
+    $jd = new JsonData();
+    $user = $this->getLoggedInUser($dh);
+    if ($user && $user->hasPrivilege(UserPrivilege::MODIFY_USER)) {
+      $q = $dh->getParameter("q");
+      
+      $r = $dh->executeQuery("call find_user('$q')");
+      
+      if ($r["error"]) {
+        $jd->set("error", $r["error"]);
+      } else {
+      
+        $objects = array();
+        while ($curRow = $r["result"]->fetch_assoc()) {
+          $obj = $this->createObjectFromRow($curRow);
+          $obj->loadPrivileges($dh);
+          $objects[] = $obj;            
+        }
+        
+        //now get out the attributes for json return.  This extra step of
+        //creating the object by giving it attributes and then calling getAttributes
+        //seems redundant but allows the object to control just which 
+        //attributes get make public (along with their names, etc)
+        $output = array();
+        foreach($objects as $obj) {
+          $output[] = $obj->getAttributes();
+        }
+        
+        $jd->set("users", $output);
+        
+      }
+      
+    } else {
+      $jd->set("error", "Cannot find users");
+    }
+    
+    return $jd;
   }
 
   /*don't add a user - sign up instead.  adding an object requires being logged in*/
@@ -186,13 +222,23 @@ class UserManager extends Manager{
   /*a little different than generic manager update.  allowed to proceed if
     the logged-in user either has modify_user permissions (which means it can
     modify any user) or is the same as the user object created from request, which
-    means a user is updating itself
+    means a user is updating itself.  Also, must be verified to update
     */
   protected function update($dh, $obj, $user) {
-    $jd = new JsonData();    
-    if ($user->hasPrivilege($this->updatePriv_) ||
-      ($user->getAttributes()["id"] === $obj->getAttributes()["id"])) {
-      $jd = $obj->update($dh);
+    $jd = new JsonData();
+    $updateSelf = ($user->getAttributes()["id"] === $obj->getAttributes()["id"]);
+    if ($user->hasPrivilege($this->updatePriv_) || $updateSelf  ) {
+      
+      if ($user->getAttributes()["isVerified"]) {
+        $jd = $obj->update($dh);
+        //if the updated user was the logged-in user, need to update session
+        if ($updateSelf) {
+          $this->saveToSession($obj);
+        }      
+      } else {
+        $jd->set("error", "You must verify your account before you can update your profile.");
+      }
+      
     } else {
       $jd->set("error", "User does not have permission to update $this->objName_");
     }
@@ -223,22 +269,13 @@ class UserManager extends Manager{
 //needs to match codes in database table of privileges
 abstract class UserPrivilege
 {
-    const ADD_USER = 1;     //add new users
-    const MODIFY_USER = 2;  //modify users other than self
-    const DELETE_USER = 3;  //delete users other than self
-    const ADD_TREE = 4;
-    const UPDATE_TREE = 5;
-    const DELETE_TREE = 6;
-    const ADD_TAXON = 7;
-    const UPDATE_TAXON = 8;
-    const DELETE_TAXON = 9;
-    const ADD_OBSERVATION = 10;
-    const UPDATE_OBSERVATION = 11; //update observation not created by self
-    const DELETE_OBSERVATION = 12; //delete observation not created by self
-    const ADD_LAYER = 13;
-    const UPDATE_LAYER = 14;
-    const DELETE_LAYER = 15;
-
+    const MODIFY_USER = 1;  //modify users other than self
+    const ADD_TREE = 2;
+    const UPDATE_TREE = 3;
+    const DELETE_TREE = 4;
+    const ADD_TAXON = 5;
+    const ADD_OBSERVATION = 6;
+    const MODIFY_OBSERVATION = 7; //modify or delete observation not created by self
     
 }
 
@@ -260,6 +297,7 @@ class User {
   private $lastName_;
   private $postalCode_;
   private $privileges_; //array of privileges user has
+  private $isVerified_;
   
   public function __construct($attrs) {
     //set defaults
@@ -275,11 +313,12 @@ class User {
     $this->firstName_ = null;
     $this->lastName_ = null;
     $this->postalCode_ = null;
+    $this->isVerified_ = null;
     
-    if (isset($this->privileges_)) {
-      unset($this->privileges_);
-    }
-    $this->privileges_ = array();  
+    //if (isset($this->privileges_)) {
+    unset($this->privileges_);
+    //}
+    $this->privileges_ = null;  
   }
   
   /*helper function that calls get_user and returns an object with 
@@ -312,6 +351,7 @@ class User {
           $toReturn["user"]["firstName"] = $curRow["first_name"];
           $toReturn["user"]["lastName"] = $curRow["last_name"];
           $toReturn["user"]["postalCode"] = $curRow["postal_code"];
+          $toReturn["user"]["isVerified"] = (int) $curRow["is_verified"];
           
           if ($includePw) {
             $toReturn["user"]["password"] = $curRow["password"];
@@ -405,7 +445,13 @@ class User {
     $toReturn["firstName"] = $this->firstName_;
     $toReturn["lastName"] = $this->lastName_;
     $toReturn["postalCode"] = $this->postalCode_;
-    $toReturn["privileges"] = $this->privileges_;
+    if ($this->privileges_ !== null) {
+      $toReturn["privileges"] = $this->privileges_;
+    } else {
+      $toReturn["privileges"] = array();
+    }
+    
+    $toReturn["isVerified"] = $this->isVerified_;
     return $toReturn;
   }
   
@@ -427,22 +473,30 @@ class User {
           $this->email_ = $val;
           break;        
         case "displayName":
+        case "display_name":
           $this->displayName_ = $val;
           break;        
         case "firstName":
+        case "first_name":
           $this->firstName_ = $val;
           break;        
         case "lastName":
+        case "last_name":
           $this->lastName_ = $val;
           break;        
         case "postalCode":
+        case "postal_code":
           $this->postalCode_ = $val;
+          break;        
+        case "isVerified":
+        case "is_verified":
+          $this->isVerified_ = (int) $val;
           break;        
         case "privileges":
           //might be a string of comma-separated numbers, or an array
           if (is_array($val)) {
             $this->privileges_ = $val;
-          } else {
+          } else if ($val !== null) {
             //clear array first
             unset($this->privileges_);
             $this->privileges_ = array();
@@ -531,7 +585,7 @@ class User {
       $userId = $this->id_;
 
       if ($lockPw) {
-        $s = "call update_user($userId, null, null, '', null, null, null, null)";
+        $s = "call update_user($userId, null, null, '', null, null, null, null, null)";
       } else {
         $username = ($this->username_ === null) ? "null" : "'$this->username_'";      
         $email = ($this->email_ === null) ? "null" : "'$this->email_'";      
@@ -539,12 +593,18 @@ class User {
         $fn = ($this->firstName_ === null) ? "null" : "'$this->firstName_'";      
         $ln = ($this->lastName_ === null) ? "null" : "'$this->lastName_'";      
         $pc = ($this->postalCode_ === null) ? "null" : "'$this->postalCode_'";      
+        $iv = ($this->isVerified_ === null) ? "null" : "'$this->isVerified_'";
+        //automatically verify users if token is passed and is valid
+        $iv = ($token !== null) ? 1 : $iv;
         
-        $s = "call update_user($userId, $username, $email, $hash, $dn, $fn, $ln, $pc)";      
+        $s = "call update_user($userId, $username, $email, $hash, $dn, $fn, $ln, $pc, $iv)";      
       }
 
       $r = $dh->executeQuery($s);      
       if ($r["result"]) {
+        //first update privileges
+        $this->savePrivilegesToDb($dh);
+        
         
         //need to loadfromdb because it's possible that only one or two
         //attribute have been updated (and are the only ones defined in 'this'
@@ -564,7 +624,11 @@ class User {
     returns true if user has the given privilege
   */
   public function hasPrivilege($priv) {    
-    return in_array($priv, $this->privileges_);    
+    $toReturn = false;
+    if ($this->privileges_ !== null) {
+      $toReturn = in_array($priv, $this->privileges_);
+    }
+    return $toReturn;
   }
   
   /*
@@ -622,14 +686,16 @@ class User {
   
   /*helper function that saves current privileges to database*/
   private function savePrivilegesToDb($dh) {
-  //easiest to first remove all privileges then add current ones back
-    $s = "call delete_user_privilege($this->id_)";
-    $dh->executeQuery($s);
-    foreach($this->privileges_ as $key => $val) {
-      $s = "call add_user_privilege($this->id_, $val)";
-      $r = $dh->executeQuery($s);
+    //easiest to first remove all privileges then add current ones back
+    //only do this if privileges has actually been set
+    if ($this->privileges_ !== null) {
+      $s = "call delete_user_privilege($this->id_, null)";
+      $dh->executeQuery($s);
+      foreach($this->privileges_ as $key => $val) {
+        $s = "call add_user_privilege($this->id_, $val)";
+        $r = $dh->executeQuery($s);
+      }
     }
-  
   }
 
   

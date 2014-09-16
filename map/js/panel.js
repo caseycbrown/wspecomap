@@ -9,6 +9,8 @@ wsp.OptionMenu = function(loginPanel) {
   this.domMenu = $("#option-menu");
   this.profileItem = this.domMenu.find("li.profile").detach();
   this.profileItem.isAdded = false;
+  this.adminItem = this.domMenu.find("li.admin").detach();
+  this.adminItem.isAdded = false;
   
   //set up event handler
   this.domMenu.find(".option").click($.proxy(this.onMenuOptionClick, this));
@@ -54,6 +56,15 @@ wsp.OptionMenu.prototype.onLoginChange = function(user) {
   } else if (!user && this.profileItem.isAdded) {
     this.profileItem.detach();
     this.profileItem.isAdded = false;
+  }
+  
+  if (user && !this.adminItem.isAdded && (user.hasPrivilege(wsp.UserPrivilege.MODIFY_USER))) {
+    this.profileItem.after(this.adminItem);
+    this.adminItem.isAdded = true;    
+  } else {
+    //now add or remove adminItem
+    this.adminItem.detach();
+    this.adminItem.isAdded = false;
   }
   
 };
@@ -499,7 +510,7 @@ wsp.EditTreePanel.prototype.onSubmitClick = function() {
   .done(function(data){
     that.close();
   })    
-  .fail(that.ajaxFail);
+  .fail(function(a,b,c){that.ajaxFail(a,b,c);});
 };
 
 
@@ -756,6 +767,7 @@ wsp.RegisterPanel.prototype.onSubmitClick = function() {
 wsp.PageContainer = function() {
   this.pages = {};
   this.pages["map-about"] = new wsp.Page("map-about"); //no extra functionality
+  this.pages["admin-user"] = new wsp.AdminPage("admin-user");
   this.pages["map-page"] = new wsp.MapPage("map-page");
   this.pages["user-pw"] = new wsp.PasswordPage("user-pw");
   this.pages["user-profile"] = new wsp.ProfilePage("user-profile");
@@ -827,6 +839,22 @@ wsp.Page.prototype.onCloseClick = function () {
 wsp.Page.prototype.setError = function (msg) {
   this.dom.find(".error").text(msg);
 }
+
+/*
+  Call this method when there is an error from ajax request.
+  Makes the assumption that there is a .error label on the page
+*/
+wsp.Page.prototype.ajaxFail = function (jqXHR, textStatus, errorThrown) {
+  var error = "Error: ";
+  if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
+    error += jqXHR.responseJSON.error;
+  } else {
+    error += errorThrown;
+  }
+  
+  this.setError(error);
+
+};
 
 
 /*inherits from Page and is used to show map*/
@@ -923,6 +951,7 @@ wsp.PasswordPage.prototype.onSubmitClick = function(event) {
     error = "Passwords do not match";
   }
   //Not checking how good passwords are - nothing really to secure
+  this.setError(error);
   if (!error) {
     var data = {verb: "changepw", noun: "user",
                 passwordnew: pw0,
@@ -950,25 +979,16 @@ wsp.PasswordPage.prototype.onSubmitClick = function(event) {
       }
       
     })
-    .fail(function (jqXHR, textStatus, errorThrown) {
-      var error = "Error: ";
-      if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
-        error += jqXHR.responseJSON.error;
-      } else {
-        error += errorThrown;
-      }
-      
-      this.setError(error);
-    });    
+    .fail(this.ajaxFail);    
   }
-  this.setError(error);
+  
   
 };
 
 /*inherits from Page and is used to show page where user can update profile*/
 wsp.ProfilePage = function(name) {
   wsp.Page.call(this, name);
-  this.userId = null;
+  this.user = null;
 };
 
 wsp.ProfilePage.prototype = Object.create(wsp.Page.prototype); //inherit from page
@@ -985,29 +1005,30 @@ wsp.ProfilePage.prototype.onCreate = function(event, ui) {
 
 /*sets fields according to user*/
 wsp.ProfilePage.prototype.initializeFields = function () {
-  var user = wspApp.getSetting(wspApp.Settings.user);
+  this.user = wspApp.getSetting(wspApp.Settings.user) || {};
   //this page shouldn't get opened if user is null, but in case it somehow happens,
   //at least allow page to open without error
-  user = user || {};
-  this.dom.find(".display-name").val(user.displayName);
-  this.dom.find(".first-name").val(user.firstName);
-  this.dom.find(".last-name").val(user.lastName);
-  this.dom.find(".postal-code").val(user.postalCode);
-  this.dom.find(".email").val(user.email);
-  this.userId = user.id;
+  this.dom.find(".username").text(this.user.username);
+  this.dom.find(".display-name").val(this.user.displayName);
+  this.dom.find(".first-name").val(this.user.firstName);
+  this.dom.find(".last-name").val(this.user.lastName);
+  this.dom.find(".postal-code").val(this.user.postalCode);
+  this.dom.find(".email").val(this.user.email);
   
   this.setError(null);
 };
 
 wsp.ProfilePage.prototype.onSubmitClick = function(event) {
+  //var privileges = this.user.privileges || [];
   var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
                     data: {verb: "update", noun: "user",
-                      userid: this.userId,
+                      userid: this.user.id,
                       displayname: this.dom.find(".display-name").val(),
                       firstname: this.dom.find(".first-name").val(),
                       lastname: this.dom.find(".last-name").val(),
                       postalcode: this.dom.find(".postal-code").val(),
                       email: this.dom.find(".email").val()
+                      //privileges: privileges.toString()
                     },
                     dataType: "json",
                     context: this})    
@@ -1017,15 +1038,151 @@ wsp.ProfilePage.prototype.onSubmitClick = function(event) {
     var user = new wsp.User({dbUser: data.user});
     wspApp.setSetting(wspApp.Settings.user, user);
   })
-  .fail(function (jqXHR, textStatus, errorThrown) {
-    var error = "Error: ";
-    if (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error) {
-      error += jqXHR.responseJSON.error;
-    } else {
-      error += errorThrown;
-    }
-    
-    this.setError(error);
-  });    
+  .fail(this.ajaxFail);
   
+};
+
+/*inherits from Page and is used to show page where user can do admin tasks*/
+wsp.AdminPage = function(name) {
+  wsp.Page.call(this, name);
+  this.currentUser = null;
+  this.dom.find("ul.user").on("filterablebeforefilter", $.proxy(this.onFilter, this));
+};
+
+wsp.AdminPage.prototype = Object.create(wsp.Page.prototype); //inherit from page
+//set "constructor" property as per mozilla developer docs
+wsp.AdminPage.prototype.constructor = wsp.AdminPage;
+
+wsp.AdminPage.prototype.onCreate = function(event, ui) {
+  $.ajax({url: wspApp.Constants.DATA_URL,
+          data: {verb: "get", noun: "privilege"},
+                dataType: "json",
+                context: this})
+  .done(this.onPrivilegesLoaded)
+  .fail(this.ajaxFail);
+};
+
+
+wsp.AdminPage.prototype.onFilter = function (e, data) {
+  //the following code is modified from
+  //http://demos.jquerymobile.com/1.4.3/listview-autocomplete-remote/
+  
+  var $ul = this.dom.find("ul.user"),
+      q = $(data.input).val(),
+      s = "",
+      li = null,
+      that = this;
+  
+  $ul.empty();
+  
+  if ( q && q.length > 2 ) {
+      //$ul.html( "<li><div class='ui-loader'><span class='ui-icon ui-icon-loading'></span></div></li>" );
+      $ul.listview().listview( "refresh" );
+      
+      $.ajax({url: wspApp.Constants.DATA_URL,
+              data: {verb: "get", noun: "user",
+                      q: q},
+                    dataType: "json",
+                    context: this})
+      .done(function(data){
+        if (data.users.length > 0) {
+          $ul.append("<li>Username | Display Name | Email</li>");
+        }
+        $.each(data.users, function ( i, val ) {
+          s = val.username + " | " + (val.displayName || "(undefined)") + " | " + val.email;
+          li = $("<li>")
+            .html(s)
+            .click($.proxy(that.onFilterListClick, that));
+          li[0].user = val; //save user with listitem
+          $ul.append(li);
+          
+          //html += "<li>" + s + "</li>";
+        });
+        //$ul.html( html );
+        $ul.listview( "refresh" );
+        $ul.trigger( "updatelayout");
+      })
+      .fail(this.ajaxFail);
+  } else {
+    $ul.append("<li>Please enter at least 3 characters</li>");
+  }
+};
+
+/*called when privileges have been received from database*/
+wsp.AdminPage.prototype.onPrivilegesLoaded = function (data) {
+  var label = null,
+    input = null,
+    privList = this.dom.find("ul.privileges");
+  
+  //go through them and add checkbox for each
+  $.each(data.privileges, function(i, priv) {
+    //want to add a checkbox for each privilege
+    label = $("<label></label>")
+      .addClass("panel-descriptor")
+      .text(priv.code + "(" + priv.name + ")");
+    input = $("<input>")
+      .addClass("privilege-" + priv.code)
+      .attr("data-privilege-code", priv.code)
+      .prop("type", "checkbox")
+      .prop("checked", false);
+      
+    label.prepend(input);
+    privList.append($("<li></li>").append(label));
+    
+    input.checkboxradio().checkboxradio("refresh");//init/refresh
+  });
+
+};
+
+wsp.AdminPage.prototype.onFilterListClick = function (event) {
+  var input = null,
+    that = this;
+  
+  this.currentUser = event.currentTarget.user;
+
+  this.dom.find("span.user").text("for " + this.currentUser.username);
+  this.dom.find("button.submit").html("Update User " + this.currentUser.username);
+  //reset all the inputs to unchecked
+  this.dom.find("ul.privileges input")
+    .prop("checked", false)
+    .checkboxradio().checkboxradio("refresh");
+  
+  //go through each of user's privileges and check the box
+  $.each(this.currentUser.privileges, function(i, privCode) {
+    input = that.dom.find("input.privilege-" + privCode);
+    input.prop("checked", true);
+    input.checkboxradio().checkboxradio("refresh");//init/refresh
+  });
+
+};
+
+
+wsp.AdminPage.prototype.onSubmitClick = function(event) {
+  //only proceed if we have a user
+  if (this.currentUser) {
+    var privileges = [];
+    var elmt = null;
+    this.dom.find("ul.privileges input").each(function(index, element) {
+      elmt = $(element);
+      if (elmt.prop("checked")){
+        privileges.push(elmt.attr("data-privilege-code"));
+      }
+    });
+  
+    $.ajax({url: wspApp.Constants.DATA_URL,
+            data: {verb: "update", noun: "user",
+              userid: this.currentUser.id,
+              privileges: privileges.toString()},
+                  dataType: "json",
+                  context: this})
+    .done(function(data){
+      this.currentUser.privileges = data.user.privileges;
+      //also update if it happens to be this user
+      if (wspApp.user.id === data.user.id) {
+        wspApp.user.privileges = data.user.privileges;
+      }
+      this.setError(data.user.username + " updated successfully!");
+    })
+    .fail(this.ajaxFail);
+  }
 };

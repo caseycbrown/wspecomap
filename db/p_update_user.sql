@@ -8,7 +8,8 @@ create procedure update_user(
   in in_display_name varchar(25),
   in in_first_name varchar(40),
   in in_last_name varchar(40),
-  in in_postal_code varchar(32)
+  in in_postal_code varchar(32),
+  in in_is_verified bit(1)
   
 )
 begin		
@@ -21,7 +22,8 @@ begin
     display_name = ifnull(in_display_name, display_name),
     first_name = ifnull(in_first_name, first_name),
     last_name = ifnull(in_last_name, last_name),
-    postal_code = ifnull(in_postal_code, postal_code)
+    postal_code = ifnull(in_postal_code, postal_code),
+    is_verified = ifnull(in_is_verified, is_verified)
   where
     user_id = in_user_id
     

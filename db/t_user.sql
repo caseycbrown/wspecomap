@@ -17,6 +17,7 @@ create table if not exists users (
   first_name varchar(40) null,
   last_name varchar(40) null,
   postal_code varchar(32) null,
+  is_verified bit(1) default 0,
   
   primary key (user_id),
   constraint uq_users__username
