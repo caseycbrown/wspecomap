@@ -89,6 +89,8 @@ class Mailer {
     //send using mail,
     $headers = "From: $from" . "\r\n" .
       "Reply-To: $from" . "\r\n" .
+      'MIME-Version: 1.0' . "\r\n" .
+      'Content-type: text/html; charset=iso-8859-1' . "\r\n" .
       'X-Mailer: PHP/' . phpversion();
     try {
       $toReturn = mail($to, $subject, $body, $headers);
