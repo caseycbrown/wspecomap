@@ -36,13 +36,22 @@
     </script>
   </head>
   <body>
-        
-    <div data-url="map-page" data-role="page" id="map-page" data-title="WSP">      
+  
+  <div id="fb-root"></div>
+   <div data-url="map-page" data-role="page" id="map-page" data-title="WSP">      
       
       <div data-role="header" data-position="fixed">
         <h1>WSP Eco Map</h1>
-        
-      <a href="#map-about" class="ui-btn-left" data-role="button" data-inline="true">About</a>
+
+        <!--
+        <div class="social-buttons ui-btn-left" data-role="controlgroup" data-type="horizontal">
+          <div class="fb-like" data-href="http://localecology.org/wspecomap"
+            data-layout="button" data-action="like" data-show-faces="true" data-share="true"></div>
+            
+            <a href="https://twitter.com/share" class="twitter-share-button" data-text="Explore Washingon Square Park" data-count="none" data-hashtags="coolmap">Tweet</a>
+          
+        </div>
+        -->
 
         <a href="#option-menu" class="ui-btn-right" data-rel="popup" data-role="button"
           data-inline="true" data-icon="bars" data-iconpos="left">Options</a>
@@ -55,6 +64,7 @@
             <li class="admin"><a href="#admin-user" class="option"
               data-option="profile">Admin</a></li>
             <li><a href="#" class="option" data-option="settings">Settings</a></li>
+            <li><a href="#map-share">Share</a></li>
             <li><a href="#map-about">About</a></li>
           </ul>
         </div>
@@ -310,6 +320,34 @@
       </div>
     </div>
 
+    
+    <div data-role="page" id="map-share" data-title="WSP - Share" data-theme="b">
+      <div data-role="header" data-position="fixed">
+        <h1>Share WSP Eco Map</h1>
+        
+      </div>
+
+      <div role="main" class="ui-content">
+        <div class="social-buttons">
+          <div class="social">Please share!</div>
+          
+          <div class="social">    
+            <a href="https://twitter.com/share" class="twitter-share-button"
+              data-text="Explore Washingon Square Park" data-count="none"
+              data-hashtags="coolmap"></a>
+          </div>
+          <div class="social">
+            <div class="g-plusone" data-annotation="none"></div>
+          </div>
+          <div class="fb-like social" data-layout="button" data-action="like"
+            data-share="true"></div>
+        </div>
+          
+        <button type="button" class="close ui-btn ui-corner-all ui-btn-a ui-mini">Close</button>
+      </div>
+    </div>
+
+    
     <div data-role="page" id="user-pw" data-title="Set Password" data-theme="b">
       <div data-role="header" data-position="fixed">
         <h1>WSP Password</h1>        
@@ -421,6 +459,7 @@
         
       </div>
     </div>
+
     
     
   </body>

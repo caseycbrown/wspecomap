@@ -100,7 +100,20 @@ label.panel-descriptor {
 
 .custom-tile {
   height: 4096px;
-  width: 4096px;
+  width: 4096px;  
   background-color: white;
   opacity: .1;
+}
+
+.social {
+  padding: 10px 10px 10px 50px;
+}
+.fb-like {
+}
+.social-buttons {
+/*  
+  position: absolute;
+  bottom: 12px;
+  right: 60px
+*/
 }
