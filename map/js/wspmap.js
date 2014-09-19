@@ -109,7 +109,7 @@ wsp.Map = function (baseMap) {
     val = (val === null) ? true : val; //show location by default
     wspApp.setSetting(settings.showLocation, val); //set in case it wasn't
     
-    //do the same for minetta creek, though the default is false
+    //do the same for minetta brook, though the default is false
     val = wspApp.getSetting(settings.showMinetta);
     val = (val === null) ? false : val;
     wspApp.setSetting(settings.showMinetta, val);
@@ -1499,7 +1499,7 @@ wsp.TapholdListener.prototype.remove = function () {
   this.object = null;
 };
 
-/*object that can show/hide minetta creek*/
+/*object that can show/hide minetta brook*/
 wsp.MinettaOverlay = function (map, msgPanel) {
   this.map = map;
   this.messagePanel = msgPanel;
@@ -1638,7 +1638,7 @@ wsp.MinettaOverlay.prototype.setVisibility = function (isVisible) {
     }
     e.stop();
 */
-    var s = "This is the approximate path where Minetta Creek once ran.";
+    var s = "This is the approximate path where Minetta Brook once ran.";
     that.messagePanel.open({error: s});
 
   });
