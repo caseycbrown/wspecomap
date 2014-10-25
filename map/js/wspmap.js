@@ -212,7 +212,7 @@ wsp.Map = function (baseMap) {
   /*called to get trees, taxon, and layer info to start*/
   this.requestInitialData = function () {
     var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
-                        data: {verb: "get", noun: "initial-data"},
+                        data: {verb: "get", noun: "initial-data", dbhmin: 13},
                         dataType: "json",
                         context: this})    
         .done(function(data){
@@ -1505,6 +1505,7 @@ wsp.MinettaOverlay = function (map, msgPanel) {
   this.messagePanel = msgPanel;
   this.centerPoly = null;
   this.boundaryPoly = null;
+  this.walkingTour = null; //use steve duncan's walking tour
   this.centerCoords = [
     {lat: 40.73165452479978, lng: -73.99742697483407},
     {lat: 40.7315478241654, lng: -73.99759089999998},
@@ -1613,6 +1614,12 @@ wsp.MinettaOverlay.prototype.setVisibility = function (isVisible) {
       fillOpacity: 0.15
     });
     
+    
+    this.walkingTour = new google.maps.KmlLayer({
+      url: "http://localecology.org/wspecomap/kml/minetta_tour.kml",
+      preserveViewport: true
+    });
+    
  /*   
   google.maps.event.addListener(this.boundaryPoly, "dblclick", function(e){
     console.log("hi there - double click");
@@ -1648,8 +1655,9 @@ wsp.MinettaOverlay.prototype.setVisibility = function (isVisible) {
   
   if (this.centerPoly) {
     var map = (isVisible) ? this.map.baseMap : null;
-    this.centerPoly.setMap(map);
-    this.boundaryPoly.setMap(map);
+    //this.centerPoly.setMap(map);
+    //this.boundaryPoly.setMap(map);
+    this.walkingTour.setMap(map);
   }
   
 };

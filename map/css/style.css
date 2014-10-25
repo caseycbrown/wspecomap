@@ -105,15 +105,6 @@ label.panel-descriptor {
   opacity: .1;
 }
 
-.social {
-  padding: 10px 10px 10px 50px;
-}
-.fb-like {
-}
-.social-buttons {
-/*  
-  position: absolute;
-  bottom: 12px;
-  right: 60px
-*/
+.social-buttons a{
+  text-decoration: none;
 }

@@ -767,7 +767,6 @@ wsp.RegisterPanel.prototype.onSubmitClick = function() {
 wsp.PageContainer = function() {
   this.pages = {};
   this.pages["map-about"] = new wsp.Page("map-about"); //no extra functionality
-  this.pages["map-share"] = new wsp.SharePage("map-share"); //no extra functionality
   this.pages["admin-user"] = new wsp.AdminPage("admin-user");
   this.pages["map-page"] = new wsp.MapPage("map-page");
   this.pages["user-pw"] = new wsp.PasswordPage("user-pw");
@@ -1189,31 +1188,3 @@ wsp.AdminPage.prototype.onSubmitClick = function(event) {
   }
 };
 
-/*inherits from Page and is used to show page where user can share socially*/
-wsp.SharePage = function(name) {
-  wsp.Page.call(this, name);
-  this.user = null;
-};
-
-wsp.SharePage.prototype = Object.create(wsp.Page.prototype); //inherit from page
-//set "constructor" property as per mozilla developer docs
-wsp.SharePage.prototype.constructor = wsp.SharePage;
-
-/*called by page container before showing this page*/
-wsp.SharePage.prototype.onBeforeShow = function(event, ui) {
-};
-
-wsp.SharePage.prototype.onCreate = function(event, ui) {
-  //load twitter
-  $.getScript("https://platform.twitter.com/widgets.js");
-  
-  //facebook load needs to have init called afterward, though it doesn't if
-  //it is instead loaded by creating a script element and setting its source
-  //to the url.  i'm not sure why...
-  $.getScript("//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0", function() {
-    FB.init({xfbml: true, version: "v2.0"});
-  });  
-
-  $.getScript("https://apis.google.com/js/plusone.js");
-  
-};
