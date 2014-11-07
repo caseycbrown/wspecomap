@@ -1,0 +1,275 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<kml xmlns='http://www.opengis.net/kml/2.2'>
+	<Document>
+		<name>Untitled layer</name>
+		<Placemark>
+			<styleUrl>#icon-161</styleUrl>
+			<name>Start of Minetta Tour - 9 E. 13th St</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-73.992877,40.734901,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#line-009900-5</styleUrl>
+			<name>Walking Tour Route - Minetta Creek Tour</name>
+			<ExtendedData>
+			</ExtendedData>
+			<LineString>
+				<tessellate>1</tessellate>
+				<coordinates>-73.993398,40.735031,0.0 -73.994171,40.735388,0.0 -73.99464,40.734771,0.0 -73.99762200000002,40.736023,0.0 -73.997815,40.735795,0.0 -73.999017,40.734072,0.0 -73.996034,40.73282,0.0 -73.997064,40.731502,0.0 -73.99773,40.730885,0.0 -73.999554,40.731129,0.0 -74.000433,40.729925,0.0 -74.000927,40.730169,0.0 -74.001528,40.729681,0.0 -74.002236,40.729649,0.0 -74.00157100000001,40.730381,0.0 -74.00215,40.730478,0.0 -74.003523,40.730055,0.0 -74.004961,40.729568,0.0 -74.005841,40.729405,0.0 -74.009381,40.729763,0.0 -74.010862,40.729828,0.0</coordinates>
+			</LineString>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#poly-0000FF-3-115</styleUrl>
+			<name>Minetta Creek Route Historic Flow Route</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Polygon>
+				<outerBoundaryIs>
+					<LinearRing>
+						<tessellate>1</tessellate>
+						<coordinates>-73.995629,40.738649,0.0 -73.996112,40.73608399999999,0.0 -73.99633200000001,40.733478,0.0 -73.99682,40.73233,0.0 -73.996986,40.731934,0.0 -73.997362,40.73166499999999,0.0 -73.998456,40.731747,0.0 -73.99906,40.73156000000001,0.0 -73.99931,40.73102999999999,0.0 -73.999561,40.730869,0.0 -74.0003,40.73083,0.0 -74.001085,40.730283,0.0 -74.001428,40.729901,0.0 -74.00217,40.72967,0.0 -74.00298,40.729530000000004,0.0 -74.004968,40.728917,0.0 -74.005945,40.728633,0.0 -74.00659900000001,40.728657,0.0 -74.00749,40.728543,0.0 -74.00794,40.728185999999994,0.0 -74.009045,40.727966,0.0 -74.008884,40.728381,0.0 -74.009786,40.727763,0.0 -74.008691,40.727389,0.0 -74.009024,40.727787,0.0 -74.00793,40.727991,0.0 -74.006889,40.72790100000001,0.0 -74.00632,40.727982,0.0 -74.005945,40.728438,0.0 -74.004915,40.728763,0.0 -74.003885,40.729047,0.0 -74.002962,40.72941300000001,0.0 -74.002104,40.72955999999999,0.0 -74.00131,40.72983,0.0 -74.000945,40.730226,0.0 -74.000226,40.730698,0.0 -73.99963,40.73075000000001,0.0 -73.99932,40.73079,0.0 -73.99871,40.730779999999996,0.0 -73.998359,40.730869,0.0 -73.997925,40.730958,0.0 -73.99763,40.731251,0.0 -73.99736,40.73152999999999,0.0 -73.997136,40.731588,0.0 -73.996884,40.731771,0.0 -73.996718,40.73216099999999,0.0 -73.996396,40.732804,0.0 -73.996063,40.733413,0.0 -73.995903,40.734495,0.0 -73.99564000000001,40.734460000000006,0.0 -73.99476,40.73449,0.0 -73.99365,40.73475,0.0 -73.99255,40.73512,0.0 -73.99204,40.735535,0.0 -73.99043,40.73974,0.0 -73.99032,40.74031,0.0 -73.99049,40.74002,0.0 -73.99146,40.73779,0.0 -73.99195,40.73628,0.0 -73.9923,40.735530000000004,0.0 -73.99262,40.73532,0.0 -73.99352,40.734950000000005,0.0 -73.99425,40.73473,0.0 -73.994819,40.734588,0.0 -73.995457,40.734572,0.0 -73.995747,40.734559999999995,0.0 -73.996026,40.734641,0.0 -73.995978,40.73556800000001,0.0 -73.995962,40.736039,0.0 -73.995892,40.736486,0.0 -73.99554,40.738260000000004,0.0 -73.995489,40.738637,0.0 -73.99528,40.739019,0.0 -73.99517,40.73945,0.0 -73.995629,40.738649,0.0</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-159</styleUrl>
+			<name>WEST BRANCH of Minetta Creek</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-73.99586,40.738218,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-165</styleUrl>
+			<name>EAST BRANCH of Minetta Creek</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-73.990946,40.73773,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>First Presbyterian Church (1860s)</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-73.994878,40.734657,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>45 West 12th St</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-73.996192,40.735403,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>MH: DPW</name>
+			<ExtendedData>
+			</ExtendedData>
+			<description><![CDATA[MH: DPW over  4'x2'8" (at 5th ave) to 6'6"x7' (at 6th ave)]]></description>
+			<Point>
+				<coordinates>-73.998435,40.733885,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>#2 5th Ave</name>
+			<ExtendedData>
+			</ExtendedData>
+			<description><![CDATA[Formerly had fountain with Minetta (underground spring) waterflow; small historic plaque]]></description>
+			<Point>
+				<coordinates>-73.996992,40.73147,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>MH</name>
+			<ExtendedData>
+			</ExtendedData>
+			<description><![CDATA[Manhole over 4' 6" diameter Brick Sewer/Drain (1860s)]]></description>
+			<Point>
+				<coordinates>-73.997984,40.731031,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>NYU Law School Library Building</name>
+			<ExtendedData>
+			</ExtendedData>
+			<description><![CDATA[Underground Spring flow in sub-basement that formerly fed Minetta Brook]]></description>
+			<Point>
+				<coordinates>-73.999593,40.730958,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>Minetta Street</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-74.001138,40.729946,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>MH</name>
+			<ExtendedData>
+			</ExtendedData>
+			<description><![CDATA[over 8'6" x 9'4" combined sewer]]></description>
+			<Point>
+				<coordinates>-74.00139700000001,40.730426,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>Clarkson St Sewer</name>
+			<ExtendedData>
+			</ExtendedData>
+			<description><![CDATA[Currently hold flow from Minnetta Watershed]]></description>
+			<Point>
+				<coordinates>-74.008863,40.729633,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#poly-3366FF-3-89</styleUrl>
+			<name>Canal Drainage &amp; Collect Pond Historic Flow Route</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Polygon>
+				<outerBoundaryIs>
+					<LinearRing>
+						<tessellate>1</tessellate>
+						<coordinates>-74.00225,40.71711,0.0 -74.00326000000001,40.71672,0.0 -74.00352,40.71525,0.0 -74.00109000000002,40.71506,0.0 -73.99989,40.71716,0.0 -74.000441,40.71816,0.0 -74.0104,40.72570999999999,0.0 -74.010236,40.726007,0.0 -74.01144900000001,40.725893,0.0 -74.010687,40.725023,0.0 -74.010633,40.725364,0.0 -74.00088,40.71811,0.0 -74.00111,40.71774,0.0 -74.00178,40.71730000000001,0.0 -74.00214,40.71743,0.0 -74.00225,40.71711,0.0</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#line-FF9900-5</styleUrl>
+			<name>Canal Street Sewer Route</name>
+			<ExtendedData>
+			</ExtendedData>
+			<LineString>
+				<tessellate>1</tessellate>
+				<coordinates>-74.000323,40.717875,0.0 -74.009949,40.72519,0.0 -74.011773,40.725446,0.0</coordinates>
+			</LineString>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-24</styleUrl>
+			<name>Water Feature in Park &amp; Plaques for Canal Drainage</name>
+			<ExtendedData>
+			</ExtendedData>
+			<Point>
+				<coordinates>-74.00624500000002,40.721844,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>Fountain at lobby of #2 5th Ave</name>
+			<ExtendedData>
+				<Data name='gx_media_links'>
+					<value>http://cbk0.google.com/cbk?output=thumbnail&amp;w=90&amp;h=68&amp;ll=40.731815,-73.996843&amp;thumb=0 https://cbks0.google.com/cbk?output=thumbnail&amp;w=90&amp;h=68&amp;ll=40.731815,-73.996843&amp;thumb=0</value>
+				</Data>
+			</ExtendedData>
+			<Point>
+				<coordinates>-73.996843,40.731815,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<styleUrl>#icon-62</styleUrl>
+			<name>Natural spring flowing in basement of NYU Law Library</name>
+			<ExtendedData>
+				<Data name='gx_media_links'>
+					<value>http://cbk0.google.com/cbk?output=thumbnail&amp;w=90&amp;h=68&amp;ll=40.730839,-73.999627&amp;thumb=0 https://cbks0.google.com/cbk?output=thumbnail&amp;w=90&amp;h=68&amp;ll=40.730839,-73.999627&amp;thumb=0</value>
+				</Data>
+			</ExtendedData>
+			<Point>
+				<coordinates>-73.999627,40.730839,0.0</coordinates>
+			</Point>
+		</Placemark>
+		<Style id='icon-159'>
+			<IconStyle>
+				<scale>1.1</scale>
+				<Icon>
+					<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+				</Icon>
+			</IconStyle>
+		</Style>
+		<Style id='icon-161'>
+			<IconStyle>
+				<scale>1.1</scale>
+				<Icon>
+					<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+				</Icon>
+			</IconStyle>
+		</Style>
+		<Style id='icon-165'>
+			<IconStyle>
+				<scale>1.1</scale>
+				<Icon>
+					<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+				</Icon>
+			</IconStyle>
+		</Style>
+		<Style id='icon-24'>
+			<IconStyle>
+				<scale>1.1</scale>
+				<Icon>
+					<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+				</Icon>
+			</IconStyle>
+		</Style>
+		<Style id='icon-62'>
+			<IconStyle>
+				<scale>1.1</scale>
+				<Icon>
+					<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+				</Icon>
+			</IconStyle>
+		</Style>
+		<Style id='line-009900-5'>
+			<LineStyle>
+				<color>ff009900</color>
+				<width>5</width>
+			</LineStyle>
+		</Style>
+		<Style id='line-FF9900-5'>
+			<LineStyle>
+				<color>ff0099FF</color>
+				<width>5</width>
+			</LineStyle>
+		</Style>
+		<Style id='poly-0000FF-3-115'>
+			<LineStyle>
+				<color>ffFF0000</color>
+				<width>3</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>73FF0000</color>
+				<fill>1</fill>
+				<outline>1</outline>
+			</PolyStyle>
+		</Style>
+		<Style id='poly-3366FF-3-89'>
+			<LineStyle>
+				<color>ffFF6633</color>
+				<width>3</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>59FF6633</color>
+				<fill>1</fill>
+				<outline>1</outline>
+			</PolyStyle>
+		</Style>
+	</Document>
+</kml>
