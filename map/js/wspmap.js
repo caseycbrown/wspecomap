@@ -34,6 +34,7 @@ wsp.Application = function () {
 wsp.Application.prototype.Settings = {
   showLocation: {name: "show-location"},
   showMinetta: {name: "show-minetta"},
+  showViele: {name: "show-viele"},
   user: {name: "logged-in-user", session: true}, //save user in session, not local
   layers: {name: "visible-layers"} //save the ids that are to be visible
 };
@@ -79,6 +80,12 @@ wsp.Application.prototype.setSetting = function (setting, obj) {
         this.map.minettaOverlay.setVisibility(obj);
       }
       break;
+    case this.Settings.showViele:
+      if (this.map) {
+        //set map to basemap or to null
+        this.map.vieleOverlay.setMap(obj ? this.map.baseMap : null);
+      }
+      break;
     case this.Settings.user:
       this.user = obj;
       if (this.map) {
@@ -109,10 +116,14 @@ wsp.Map = function (baseMap) {
     val = (val === null) ? true : val; //show location by default
     wspApp.setSetting(settings.showLocation, val); //set in case it wasn't
     
-    //do the same for minetta brook, though the default is false
+    //do the same for minetta brook and viele historical, though the default is false
     val = wspApp.getSetting(settings.showMinetta);
     val = (val === null) ? false : val;
     wspApp.setSetting(settings.showMinetta, val);
+
+    val = wspApp.getSetting(settings.showViele);
+    val = (val === null) ? false : val;
+    wspApp.setSetting(settings.showViele, val);
 
     that.optionMenu.onLoginChange(wspApp.user); //update menu
     
@@ -144,6 +155,15 @@ wsp.Map = function (baseMap) {
   this.optionMenu = new wsp.OptionMenu(this.panels.login);
   
   this.minettaOverlay = new wsp.MinettaOverlay(this, this.panels.message);
+  
+  //sw and ne lat lng for bounds
+  var b = new google.maps.LatLngBounds(new google.maps.LatLng(40.720906, -74.01543),
+    new google.maps.LatLng(40.745824, -73.98689));
+  
+  this.vieleOverlay = new google.maps.GroundOverlay("images/viele-overlay.png", b, {
+      map: that.baseMap,
+      opacity: 1
+  });
 
   //settings panel needs to know when layers have arrived from server
   google.maps.event.addListener(this.layerManager, "layersloaded", function(layers){
