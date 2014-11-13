@@ -13,7 +13,7 @@
 		</Placemark>
 		<Placemark>
 			<styleUrl>#line-009900-5</styleUrl>
-			<name>Walking Tour Route - Minetta Creek Tour</name>
+			<name>Walking Tour Route - Minetta Brook Tour</name>
 			<ExtendedData>
 			</ExtendedData>
 			<LineString>
@@ -23,8 +23,10 @@
 		</Placemark>
 		<Placemark>
 			<styleUrl>#poly-0000FF-3-115</styleUrl>
-			<name>Minetta Creek Route Historic Flow Route</name>
-			<ExtendedData>
+			<name>Minetta Brook Route Historic Flow Route</name>
+			<description>Please see <a href="http://mcnyblog.org/2013/09/03/what-lies-beneath-new-york-the-minetta-brook/">this interesting article</a> about the history of Minetta Brook.
+      </description>
+      <ExtendedData>
 			</ExtendedData>
 			<Polygon>
 				<outerBoundaryIs>
@@ -37,7 +39,7 @@
 		</Placemark>
 		<Placemark>
 			<styleUrl>#icon-159</styleUrl>
-			<name>WEST BRANCH of Minetta Creek</name>
+			<name>WEST BRANCH of Minetta Brook</name>
 			<ExtendedData>
 			</ExtendedData>
 			<Point>
@@ -46,7 +48,7 @@
 		</Placemark>
 		<Placemark>
 			<styleUrl>#icon-165</styleUrl>
-			<name>EAST BRANCH of Minetta Creek</name>
+			<name>EAST BRANCH of Minetta Brook</name>
 			<ExtendedData>
 			</ExtendedData>
 			<Point>
