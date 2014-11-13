@@ -185,6 +185,7 @@ wsp.SettingsPanel = function(name) {
   this.domPanel.find(".location").change($.proxy(this.onCheckboxChange, this));
   this.domPanel.find(".minetta").change($.proxy(this.onCheckboxChange, this));
   this.domPanel.find(".viele").change($.proxy(this.onCheckboxChange, this));
+  this.domPanel.find(".historic-wsp").change($.proxy(this.onCheckboxChange, this));
   this.domPanel.find(".default-layer").change($.proxy(this.onCheckboxChange, this));
 };
 
@@ -201,6 +202,8 @@ wsp.SettingsPanel.prototype.onBeforeOpen = function(event, ui) {
   this.domPanel.find(".minetta").prop("checked", val).checkboxradio("refresh");
   val = wspApp.getSetting(wspApp.Settings.showViele);
   this.domPanel.find(".viele").prop("checked", val).checkboxradio("refresh");
+  val = wspApp.getSetting(wspApp.Settings.showHistoricWSP);
+  this.domPanel.find(".historic-wsp").prop("checked", val).checkboxradio("refresh");
   
   //for default layer, need to look to see if layer 1 is displayed
   val = wspApp.getSetting(wspApp.Settings.layers);
@@ -224,6 +227,9 @@ wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
       break;
     case "viele":
       wspApp.setSetting(wspApp.Settings.showViele, checkVal);
+      break;
+    case "historic-wsp":
+      wspApp.setSetting(wspApp.Settings.showHistoricWSP, checkVal);
       break;
 
     case "layer":

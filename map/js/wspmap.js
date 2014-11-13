@@ -35,6 +35,7 @@ wsp.Application.prototype.Settings = {
   showLocation: {name: "show-location"},
   showMinetta: {name: "show-minetta"},
   showViele: {name: "show-viele"},
+  showHistoricWSP: {name: "show-historic-wsp"},
   user: {name: "logged-in-user", session: true}, //save user in session, not local
   layers: {name: "visible-layers"} //save the ids that are to be visible
 };
@@ -86,6 +87,12 @@ wsp.Application.prototype.setSetting = function (setting, obj) {
         this.map.vieleOverlay.setMap(obj ? this.map.baseMap : null);
       }
       break;
+    case this.Settings.showHistoricWSP:
+      if (this.map) {
+        //set map to basemap or to null
+        this.map.historicParkOverlay.setMap(obj ? this.map.baseMap : null);
+      }
+      break;
     case this.Settings.user:
       this.user = obj;
       if (this.map) {
@@ -124,6 +131,9 @@ wsp.Map = function (baseMap) {
     val = wspApp.getSetting(settings.showViele);
     val = (val === null) ? false : val;
     wspApp.setSetting(settings.showViele, val);
+    val = wspApp.getSetting(settings.showHistoricWSP);
+    val = (val === null) ? false : val;
+    wspApp.setSetting(settings.showHistoricWSP, val);
 
     that.optionMenu.onLoginChange(wspApp.user); //update menu
     
@@ -161,6 +171,14 @@ wsp.Map = function (baseMap) {
     new google.maps.LatLng(40.745824, -73.98689));
   
   this.vieleOverlay = new google.maps.GroundOverlay("images/viele-overlay.png", b, {
+      map: that.baseMap,
+      opacity: 1
+  });
+
+  b = new google.maps.LatLngBounds(new google.maps.LatLng(40.729582, -73.999625),
+    new google.maps.LatLng(40.732208, -73.995613));
+  
+  this.historicParkOverlay = new google.maps.GroundOverlay("images/historic-wsp.png", b, {
       map: that.baseMap,
       opacity: 1
   });
