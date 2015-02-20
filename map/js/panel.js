@@ -248,7 +248,7 @@ wsp.SettingsPanel.prototype.onCheckboxChange = function (event) {
     
     default: //do nothing
   }
-}
+};
 
 /*called when map has loaded layers*/
 wsp.SettingsPanel.prototype.onLayersLoaded = function(layers) {
@@ -296,6 +296,15 @@ wsp.DisplayTreePanel = function(name) {
   this.domPanel.find(".edit").click($.proxy(function(){
     wspApp.map.panels.editTree.open({base: this.openOpts.base});
     }, this));
+
+  this.domPanel.find(".scientific").click($.proxy(function(){
+    var editTaxon = wspApp.user && wspApp.user.hasPrivilege(wsp.UserPrivilege.UPDATE_TAXON);
+    if (editTaxon) {
+      //open taxon panel for editing
+      var taxon = wspApp.map.taxa.getTaxon(this.openOpts.base.taxonId) || {};
+      wspApp.map.panels.taxon.open({base: taxon});
+    }
+  }, this));
   
   //for some reason removing/re-inserting button was leaving icon artifact.
   //I'm assuming this is because of some extras that JQM leaves behind...easiest
@@ -318,7 +327,7 @@ wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
   var dbhUnit = (tree.dbh === 1) ? " inch" : " inches";
 
   
-  this.toggleEditWrapper(); //show or hide
+  this.toggleEditDisplays(); //show or hide
   
   this.domPanel.find(".scientific").text(taxon.sciName);
   this.domPanel.find(".common").text(taxon.common);
@@ -343,9 +352,9 @@ wsp.DisplayTreePanel.prototype.onBeforeOpen = function(event, ui) {
 /*
   Removes or re-inserts edit button based on user
 */
-wsp.DisplayTreePanel.prototype.toggleEditWrapper = function () {
+wsp.DisplayTreePanel.prototype.toggleEditDisplays = function () {
   var user = wspApp.user;
-  //want to show or hide edit icon depending on if user is logged in and
+  //want to show or hide tree edit icon depending on if user is logged in and
   //has permissions to see it
   
   var showButton = false;
@@ -367,6 +376,10 @@ wsp.DisplayTreePanel.prototype.toggleEditWrapper = function () {
   
   }
   
+  //now update taxon info
+  showButton = user && user.hasPrivilege(wsp.UserPrivilege.UPDATE_TAXON);
+  //need an actual boolean, not "truthy" value (e.g. null isn't false and can screw things up)
+  this.domPanel.find(".scientific").toggleClass("editable", (showButton === true));
 
   
   
@@ -533,25 +546,72 @@ wsp.EditTreePanel.prototype.onSelectChange = function () {
   
   if (val === "addNew") {
     //open add taxon panel
-    wspApp.map.panels.addTaxon.open();
+    wspApp.map.panels.taxon.open();
     
   }
 };
 
 /*inherits from Panel and is used to add a new taxon*/
-wsp.AddTaxonPanel = function(name) {
+wsp.TaxonPanel = function(name) {
   wsp.Panel.call(this, name);
+  
+  this.domPanel.find("select.color").change($.proxy(function(){
+    this.updateSelectColor();
+  }, this));
+  
 };
 
-wsp.AddTaxonPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
+wsp.TaxonPanel.prototype = Object.create(wsp.Panel.prototype); //inherit from panel
 //set "constructor" property as per mozilla developer docs
-wsp.AddTaxonPanel.prototype.constructor = wsp.AddTaxonPanel;
+wsp.TaxonPanel.prototype.constructor = wsp.TaxonPanel;
 
-wsp.AddTaxonPanel.prototype.onBeforeOpen = function(event, ui) {
+
+wsp.TaxonPanel.prototype.updateSelectColor = function() {
+  var colorSelect = this.domPanel.find("select.color");
+  //var opt = this.domPanel.find("select.color option:selected");  
+  var opt = colorSelect.find("option:selected");  
+  //jquery-added element above the select menu - this seems to work
+  colorSelect.parent().css("background-color", opt.attr("data-color"));  
+};
+
+wsp.TaxonPanel.prototype.onBeforeOpen = function(event, ui) {
+  //if editing, will have been given a taxon.  if not, it means we are creating
+  //a new taxon
+  this.taxon = this.openOpts.base || (new wsp.Taxon()); 
+  
   //clear inputs in case they have been opened before
-  this.domPanel.find(".genus").val(null);
-  this.domPanel.find(".species").val(null);
-  this.domPanel.find(".common").val(null);
+  this.domPanel.find(".genus").val(this.taxon.genus);
+  this.domPanel.find(".species").val(this.taxon.species);
+  
+  //in the case of a newly-created taxon, the common name will be "unknown"
+  //instead of null, which is what we want input on form to be.  so check for that  
+  this.domPanel.find(".common").val((this.taxon.id !== -1) ? this.taxon.common : null);
+  this.domPanel.find(".usda-code").val(this.taxon.usdaCode);
+  
+  
+  
+  var colorSel = this.domPanel.find("select.color");
+  if (colorSel.find("option").length === 0) {
+    console.log("populating color selection");
+    
+    var s = "";
+    var that = this;
+    $.each(wsp.TaxonColor, function(colorId, hexColor){
+      colorId = parseInt(colorId);
+      console.log("id: " + colorId + ": " + hexColor);
+      s = "<option value='" + colorId + "'";
+      s += (that.taxon.colorId === colorId) ? " selected" : "";
+      s += " style='background-color:#" + hexColor + ";'";
+      s += " data-color='#" + hexColor + "'></option>";
+      colorSel.append(s);
+    });
+    
+    this.updateSelectColor();
+    //need to re-draw so that jqm can update selector
+    colorSel.selectmenu().selectmenu( "refresh", true)
+    
+  }
+  
   
   this.setError(null)//clear any error msg from previous time
 };
@@ -559,23 +619,42 @@ wsp.AddTaxonPanel.prototype.onBeforeOpen = function(event, ui) {
 /*
   want to go back to edit tree panel
 */
-wsp.AddTaxonPanel.prototype.onClose = function() {
-  //pass it existing openoptions
-  wspApp.map.panels.editTree.open(wspApp.map.panels.editTree.openOpts);
+wsp.TaxonPanel.prototype.onClose = function() {
+  //if we are adding a new tree, go back to editTree.  Otherwise, we were editing
+  //so go back to displayTree
+  if (this.openOpts.base) {  
+    wspApp.map.panels.displayTree.open(wspApp.map.panels.displayTree.openOpts);    
+  } else {
+    wspApp.map.panels.editTree.open(wspApp.map.panels.editTree.openOpts);
+  }
 };
-
 
 /*
   Attempts to add new taxon
 */
-wsp.AddTaxonPanel.prototype.onSubmitClick = function() {
-
-  var genus = this.domPanel.find(".genus").val(),
-    species = this.domPanel.find(".species").val(),
-    common = this.domPanel.find(".common").val();
+wsp.TaxonPanel.prototype.onSubmitClick = function() {
+  //what to do depends on whether we are adding or updating
+  console.log("taxon id is " + this.taxon.id);
   
+  var opts = {};
+  opts.genus = this.domPanel.find(".genus").val(); 
+  opts.species = this.domPanel.find(".species").val(); 
+  opts.common = this.domPanel.find(".common").val(); 
+  opts.usdaCode = this.domPanel.find(".usda-code").val();
+  opts.colorId = parseInt(this.domPanel.find("select.color option:selected").val());
+
+  var that = this;
+  this.taxon.save(opts)
+    .done(function(data){
+      that.close();
+    })
+    .fail(function(jqXHR, textStatus, errorThrown){      
+      that.ajaxFail(jqXHR, textStatus, errorThrown);
+    });
+
+/*  
   var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
-                      data: {verb: "add", noun: "taxon",
+                      data: {verb: "addBLAH", noun: "taxon",
                       genus: genus,
                       common: common,
                       species: species},
@@ -589,6 +668,9 @@ wsp.AddTaxonPanel.prototype.onSubmitClick = function() {
       this.close();
     })
     .fail(this.ajaxFail);
+    
+*/
+
 };
 
  

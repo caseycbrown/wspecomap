@@ -1,6 +1,76 @@
-/*populate taxon list - this is for initial setup when moving databases 
-  (e.g. between development and production)
+/*
+  populate taxon list 
 */
+
+
+/*this is a list of species from nyc park's info*/
+
+insert into
+  taxon (
+    taxon_id,
+    genus,
+    species,
+    common,
+    usda_code,
+    color_id
+  )
+values
+(1, null, null, null, null, 1),
+(2, 'Acer', 'negundo', 'Boxelder', 'ACNE2', 1),
+(3, 'Acer', 'platanoides', 'Norway maple', 'ACPL', 1),
+(4, 'Acer', 'rubrum', 'Red maple', 'ACRU', 1),
+(5, 'Acer', 'saccharinum', 'Silver maple', 'ACSA2', 1),
+(6, 'Aesculus', 'hippocastanum', 'Horse chestnut', 'AEHI', 1),
+(7, 'Amelanchier', 'arborea', 'Common serviceberry', 'AMAR3', 1),
+(8, 'Betula', 'papyrifera', 'Paper birch', 'BEPA', 1),
+(9, 'Catalpa', 'speciosa', 'Northern catalpa', 'CASP8', 1),
+(10, 'Cercis', 'canadensis', 'Eastern redbud', 'CECA4', 1),
+(11, 'Cedrus', 'deodara', 'Deodar cedar', 'CEDE2', 2),
+(12, 'Cornus', '', 'Dogwood', 'CORNU', 1),
+(13, 'Cornus', 'florida', 'Flowering dogwood', 'COFL2', 1),
+(14, 'Cornus', 'mas', 'Cornelian cherry', 'COMA21', 1),
+(15, 'Crataegus', 'crus-galli', 'Cockspur hawthorn', 'CRCR2', 1),
+(16, 'Fagus', 'grandifolia', 'American beech', 'FAGR', 1),
+(17, 'Fraxinus', 'pennsylvanica', 'Green ash', 'FRPE', 1),
+(18, 'Ginkgo', 'biloba', 'Ginkgo', 'GIBI2', 1),
+(19, 'Gleditsia', 'triacanthos', 'Honeylocust', 'GLTR', 1),
+(20, 'Gymnocladus', 'dioicus', 'Kentucky coffeetree', 'GYDI', 1),
+(21, 'Ilex', '', 'Holly', 'ILEX', 1),
+(22, 'Koelreuteria', 'paniculata', 'Goldenrain tree', 'KOPA', 1),
+(23, 'Liquidambar', 'styraciflua', 'Sweetgum', 'LIST2', 1),
+(24, 'Malus', '', 'Apple', 'MALUS', 1),
+(25, 'Magnolia', 'grandiflora', 'Southern magnolia', 'MAGR4', 1),
+(26, 'Magnolia', 'stellata', 'Star magnolia', 'MAST6', 1),
+(27, 'Morus', 'alba', 'White mulberry', 'MOAL', 1),
+(28, 'Morus', 'rubra', 'Red mulberry', 'MORU2', 1),
+(29, 'Phellodendron', 'amurense', 'Amur corktree', 'PHAM2', 1),
+(30, 'Pinus', 'strobus', 'Eastern white pine', 'PIST', 2),
+(31, 'Platanus', 'acerifolia', 'London planetree', 'PLAC2', 1),
+(32, 'Platanus', 'occidentalis', 'American sycamore', 'PLOC', 1),
+(33, 'Prunus', 'serrulata', 'Kwanzan cherry', 'PRSE3', 1),
+(34, 'Pyrus', 'calleryana', 'Callery pear', 'PYCA80', 1),
+(35, 'Quercus', '', 'Oak', 'QUERC', 1),
+(36, 'Quercus', 'bicolor', 'Swamp white oak', 'QUBI', 1),
+(37, 'Quercus', 'palustris', 'Pin oak', 'QUPA2', 1),
+(38, 'Quercus', 'rubra', 'Northern red oak', 'QURU', 1),
+(39, 'Robinia', 'pseudoacacia', 'Black locust', 'ROPS', 1),
+(40, 'Sequoia', 'sempervirens', 'Redwood', 'SESE3', 2),
+(41, 'Sophora', 'japonica', 'Japanese pagoda tree', 'SOJA6', 1),
+(42, 'Syringa', 'reticulata', 'Japanese tree lilac', 'SYRE2', 1),
+(43, 'Taxodium', 'distichum', 'Baldcypress', 'TADI2', 1),
+(44, 'Tilia', '', 'Basswood', 'TILIA', 1),
+(45, 'Tilia', 'americana', 'American basswood', 'TIAM', 1),
+(46, 'Ulmus', '', 'Elm', 'ULMUS', 1),
+(47, 'Ulmus', 'americana', 'American elm', 'ULAM', 1),
+(48, 'Ulmus', 'americana ''Princeton''', 'Princeton American elm', 'ULAM', 1),
+(49, 'Ulmus', 'parvifolia', 'Chinese elm', 'ULPA', 1),
+(50, 'Ulmus', 'procera', 'English elm', 'ULPR', 1),
+(51, 'Ulmus', 'pumila', 'Siberian elm', 'ULPU', 1),
+(52, 'Ulmus', 'rubra', 'Slippery elm', 'ULRU', 1),
+(53, 'Ulmus', 'thomasii', 'Rock elm', 'ULTH', 1),
+(54, 'Zelkova', '', 'Zelkova', 'ZELKO8', 1)
+;
+
 
 
 /*
@@ -16,14 +86,9 @@
 
 */
 
-delete from
-  taxon
-where
-  taxon_id in (2,3,5,6,7,8,9,14)
-;
-
 /*Now there are a handful to update - those that have been entered in db 
 differently than in excel file.  update to excel file (or, google docs i guess it is)*/
+/*
 call update_taxon(13, 'Zelkova', 'serrata', 'Japanese zelkova');
 call update_taxon(15, 'Metasequoia', 'glyptostroiboides', 'Dawn redwood');
 call update_taxon(16, 'Platanus', 'x acerifolia', 'London planetree');
@@ -31,9 +96,11 @@ call update_taxon(17, 'Quercus', 'rubra', 'Northern red oak');
 call update_taxon(18, 'Ulmus', 'americana', 'American elm');
 call update_taxon(19, 'Koelreuteria', 'paniculata', 'Goldenrain tree');
 call update_taxon(20, 'Catalpa', 'speciosa', 'Northern catalpa');
-
+*/
 
 /*Now we have the list of those that aren't in the db and need to be added*/
+
+/*
 
 insert into
   taxon (
@@ -111,7 +178,7 @@ values
   
 ;
 
-
+*/
 
 /*
 

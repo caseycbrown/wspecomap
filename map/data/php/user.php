@@ -276,7 +276,7 @@ abstract class UserPrivilege
     const ADD_TAXON = 5;
     const ADD_OBSERVATION = 6;
     const MODIFY_OBSERVATION = 7; //modify or delete observation not created by self
-    
+    const UPDATE_TAXON = 8;
 }
 
 /*provide a way for constants without too much clutter*/

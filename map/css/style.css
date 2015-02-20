@@ -73,6 +73,12 @@ label.panel-descriptor {
   right: 30px;
 }
 
+.editable {
+  color: #6699ff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .comments li {
   border-bottom: 1px solid #191919;
 }
@@ -108,3 +114,7 @@ label.panel-descriptor {
 .social-buttons a{
   text-decoration: none;
 }
+
+select.color option{
+  height: 40px;
+};

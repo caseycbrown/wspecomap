@@ -9,7 +9,7 @@ include_once "./php/manager.php";
 class TaxonManager extends Manager{
   
   public function __construct() {
-    $this->updatePriv_ = -1; //UserPrivilege::UPDATE_TAXON;
+    $this->updatePriv_ = UserPrivilege::UPDATE_TAXON;
     $this->addPriv_ = UserPrivilege::ADD_TAXON;
     $this->deletePriv_ = -1; //UserPrivilege::DELETE_TAXON;
     $this->objName_ = "taxon";
@@ -26,6 +26,8 @@ class TaxonManager extends Manager{
     $attr["genus"] = $dh->getParameter("genus");
     $attr["species"] = $dh->getParameter("species");
     $attr["common"] = $dh->getParameter("common");
+    $attr["usda_code"] = $dh->getParameter("usdacode");
+    $attr["color_id"] = $dh->getParameter("colorid");
     
     return new Taxon($attr);
   }
@@ -52,13 +54,15 @@ class TaxonManager extends Manager{
     $genus = $dh->getParameter("genus");
     $species = $dh->getParameter("species");
     $common = $dh->getParameter("common");
+    $code = $dh->getParameter("usdacode");
     
     $id = ($id === null) ? "null" : $id;
     $genus = ($genus === null) ? "null" : "'$genus'";
     $species = ($species === null) ? "null" : "'$species'";
     $common = ($common === null) ? "null" : "'$common'";
+    $code = ($code === null) ? "null" : "'$code'";
     
-    $s = "call get_taxon($id, $genus, $species, $common)";
+    $s = "call get_taxon($id, $genus, $species, $common, $code)";
     
     $info["sql"] = $s;
     return $info;
@@ -81,7 +85,8 @@ class Taxon {
   private $genus_;
   private $species_;
   private $common_;
-  private $color_;
+  private $usdaCode_;
+  private $colorId_;
   
   public function __construct($attrs) {
     //set default values
@@ -89,7 +94,8 @@ class Taxon {
     $this->genus_ = null;
     $this->species_ = null;
     $this->common_ = null;
-    $this->color_ = null;
+    $this->usdaCode_ = null;
+    $this->colorId_ = 1; //default value
     
     $this->setAttributes($attrs);
   }
@@ -104,8 +110,10 @@ class Taxon {
     $genus = ($this->genus_ === null) ? "null" : "'$this->genus_'";
     $species = ($this->species_ === null) ? "null" : "'$this->species_'";
     $common = ($this->common_ === null) ? "null" : "'$this->common_'";
+    $code = ($this->usdaCode_ === null) ? "null" : "'$this->usdaCode_'";
+    $colorId = $this->colorId_;
     
-    $s = "call add_taxon($genus, $species, $common)";
+    $s = "call add_taxon($genus, $species, $common, $code, $colorId)";
     
     
     
@@ -127,9 +135,26 @@ class Taxon {
   /* 
     Updates a taxon in database and returns jsondata object
   */
-  public function update(){    
+  public function update($dh){
     $jd = new JsonData();
-    $jd->set("error", "Update taxon functionality not yet implemented");
+    
+    //need to replace any null values with word 'null'
+    $id = ($this->id_ === null) ? "null" : $this->id_;
+    $genus = ($this->genus_ === null) ? "null" : "'$this->genus_'";
+    $species = ($this->species_ === null) ? "null" : "'$this->species_'";
+    $common = ($this->common_ === null) ? "null" : "'$this->common_'";
+    $code = ($this->usdaCode_ === null) ? "null" : "'$this->usdaCode_'";
+    $colorId = ($this->colorId_ === null) ? "null" : $this->colorId_;
+    
+    $s = "call update_taxon($id, $genus, $species, $common, $code, $colorId)";
+    $r = $dh->executeQuery($s);
+    
+    if ($r["error"]) {
+      $jd->set("error", "Error attempting to update taxon" . "..." . $r["error"]);
+    } else {      
+      $jd->set("taxon", $this->getAttributes());
+    }
+
     return $jd;
   }
   /* 
@@ -160,8 +185,13 @@ class Taxon {
         case "common":
             $this->common_ = $val;
           break;        
-        case "color":
-            $this->color_ = $val;
+        case "usda_code":
+            $this->usdaCode_ = $val;
+          break;        
+        case "color_id":
+          if (is_numeric($val)) {
+            $this->colorId_ = (int) $val;
+          }
           break;        
         default:
           //ignore any others
@@ -178,7 +208,8 @@ class Taxon {
     $attr["genus"] = $this->genus_;
     $attr["species"] = $this->species_;
     $attr["common"] = $this->common_;
-    $attr["color"] = $this->color_;
+    $attr["usdaCode"] = $this->usdaCode_;
+    $attr["colorId"] = $this->colorId_;
     
     return $attr;
   }

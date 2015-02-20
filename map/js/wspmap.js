@@ -151,6 +151,7 @@ wsp.Map = function (baseMap) {
   this.taxa = new wsp.TaxonList();
   this.layerManager = new wsp.LayerManager();
   this.user = null; //set if user logs in
+  this.currentTree = null; //set if user clicks on a tree
   
   this.panels = {};
   this.panels.settings = new wsp.SettingsPanel("settings-panel");
@@ -160,7 +161,7 @@ wsp.Map = function (baseMap) {
   this.panels.forgot = new wsp.ForgotPasswordPanel("forgot-panel");
   this.panels.register = new wsp.RegisterPanel("register-panel");
   this.panels.message = new wsp.MessagePanel("message-panel");
-  this.panels.addTaxon = new wsp.AddTaxonPanel("add-taxon-panel");
+  this.panels.taxon = new wsp.TaxonPanel("add-taxon-panel");
   
   this.optionMenu = new wsp.OptionMenu(this.panels.login);
   
@@ -223,6 +224,7 @@ wsp.Map = function (baseMap) {
   });
   google.maps.event.addListener(this, "mouseup", function(e) {
     //called when user does a taphold on the map
+    this.highlightTree(null); //clear highlit tree
     
     if(this.hadTap) {
       var t = new wsp.Tree({
@@ -247,6 +249,24 @@ wsp.Map = function (baseMap) {
     this.hadTap = false;
   });
   
+  /*highlights tree that was clicked on.  pass null to clear highlighted tree*/
+  this.highlightTree = function (tree) {
+    //if a tree is currently highlit, remove highlighting
+    if (this.currentTree) {
+      this.currentTree.marker.setIcon(
+        wspApp.map.symbolManager.getSymbol(this.currentTree).markerSymbol);
+      this.currentTree = null;
+    }
+    
+    if (tree) {
+      tree.marker.setIcon(wspApp.map.symbolManager.getHighlightSymbol(tree).markerSymbol);
+      this.currentTree = tree;
+      //this.baseMap.panTo(tree.position);
+    }
+    
+    
+  };
+  
   /*called to get trees, taxon, and layer info to start*/
   this.requestInitialData = function () {
     var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
@@ -254,7 +274,11 @@ wsp.Map = function (baseMap) {
                         dataType: "json",
                         context: this})    
         .done(function(data){
-
+          //update colors
+          $.each(data.colors, function(index, color) {
+            wsp.TaxonColor[color.id] = color.hexValue;
+          });
+          
   
           //trees should be loaded last because they use taxa and are added to layers
         
@@ -446,6 +470,8 @@ wsp.Layer.prototype.setVisibility = function (visibleIds) {
 
 wsp.SymbolManager = function () {
   var symbols_  = {};
+  var highlightSymbols_ = {};  //those used when a marker is clicked on
+  
   
   /*
     returns symbol for given tree based on taxon and dbh.  
@@ -473,6 +499,20 @@ wsp.SymbolManager = function () {
     
     return symbol;
     
+  };
+  
+  /*get symbol to use for a highlighted tree*/
+  this.getHighlightSymbol = function (tree) {
+    //only option is by size; taxon does not matter
+    var dbhGroup = tree.dbh + 1;
+    dbhGroup = Math.ceil(dbhGroup / 5);
+    var symbol = highlightSymbols_[dbhGroup];
+    if (!symbol) {
+      symbol = new wsp.Symbol(null, dbhGroup);
+      highlightSymbols_[dbhGroup] = symbol;
+    }
+        
+    return symbol;
   };
   
   /*removes tree from its symbol array*/
@@ -520,15 +560,23 @@ wsp.SymbolManager = function () {
 };
 
 /*
-  simple class that knows how to display a given tree
+  simple class that knows how to display a given tree.
 */
 
 wsp.Symbol = function (tree, dbhGroup) {
+  var tax = null;
   this.trees = {};
   
-  var tax = wspApp.map.taxa.getTaxon(tree.taxonId);
-  //taxon may not yet be defined;
-  this.color = (tax) ? tax.color : null; //set to a default
+  
+  //if tree is null, it means to create a highlight symbol using default color
+  if (tree) {
+    var tax = wspApp.map.taxa.getTaxon(tree.taxonId);
+    //taxon may not yet be defined;
+    this.color = (tax) ? tax.color : null; //set to a default
+  } else {
+    this.color = "f8ff7a";//default color for highlights
+  }
+  
   
   this.dbhGroup = dbhGroup;
 
@@ -650,6 +698,8 @@ wsp.Tree.prototype.onMouseUp = function () {
       });
   } else {
     wspApp.map.panels.displayTree.open({base: this});
+    wspApp.map.highlightTree(this);    
+    
   }
 };
 /*
@@ -785,12 +835,19 @@ wsp.Tree.prototype.setVisibility = function (visibleIds) {
 /*Class representing a taxon.*/
 wsp.Taxon = function (opts) {
   opts = opts || {};
-  opts.dbTaxon = opts.dbTaxon || {};
-  this.id = opts.dbTaxon.id || -1;
-  this.genus = opts.dbTaxon.genus || null;
-  this.species = opts.dbTaxon.species || null;
-  this.common = opts.dbTaxon.common || "*unknown*";
-  this.color = opts.dbTaxon.color;
+  this.updateValues(opts.dbTaxon);
+};
+
+/*helper function*/
+wsp.Taxon.prototype.updateValues = function(taxonInfo) {
+  taxonInfo = taxonInfo || {};
+  this.id = taxonInfo.id || -1;
+  this.genus = taxonInfo.genus || null;
+  this.species = taxonInfo.species || null;
+  this.common = taxonInfo.common || "*unknown*";
+  this.colorId = taxonInfo.colorId;
+  this.color = wsp.TaxonColor[this.colorId];
+  this.usdaCode = taxonInfo.usdaCode;
   
   //now calculate a couple of useful strings
   this.sciName = "*unknown*";
@@ -798,31 +855,31 @@ wsp.Taxon = function (opts) {
   
   //need to have genus at least...species may be null
   var searchString = "";
-  var usdaSymbol = "";
+  //var usdaCode = "";
   var ufSymbol = "#";
   
   if (this.genus) {
     this.sciName = this.genus;
     searchString = this.genus;
-    usdaSymbol = this.genus.substring(0,5);
+    //usdaCode = this.genus.substring(0,5);
     
     //now potentially add species - won't have species without genus
     if (this.species) {
       this.sciName += " " + this.species;
       searchString += "+" + this.species;
-      usdaSymbol = this.genus.substring(0,2) + this.species.substring(0,2);
+      //usdaCode = this.genus.substring(0,2) + this.species.substring(0,2);
       
       //the uf horticulture listing has varieties differentiated starting with
       //letter "a" then "b", "c", etc.  Just use "a" for our purposes
       ufSymbol = this.genus.substring(0,3) + this.species.substring(0,3) + "a.pdf";
     }
     
-    usdaSymbol = usdaSymbol.toUpperCase();
+    //usdaCode = usdaCode.toUpperCase();
 
     //links need to have a name, which must match the class of the anchor
     //that uses the link in the tree info panel
     this.links.push({name: "usda-plants",
-      url: "http://plants.usda.gov/core/profile?symbol=" + usdaSymbol});
+      url: "http://plants.usda.gov/core/profile?symbol=" + this.usdaCode});
     this.links.push({name: "google-image",
       url: "https://www.google.com/images?q=" + searchString});
     this.links.push({name: "wikipedia",
@@ -843,7 +900,7 @@ wsp.Taxon = function (opts) {
     Lady Bird Johnson Native Plant Database
     http://www.wildflower.org/gallery/species.php?id_plant=QUAL
     this.links.push({name: "lbj-npd",
-      url: "http://www.wildflower.org/plants/result.php?id_plant=" + usdaSymbol});
+      url: "http://www.wildflower.org/plants/result.php?id_plant=" + usdaCode});
 
     
       * images
@@ -859,7 +916,51 @@ wsp.Taxon = function (opts) {
     */
     
   }
+
+
+};
+
+
+/*Saves current self to database.  returns jqXHR object
+  input parameter is new values to save to - may differ from current values.
+  On success, taxon will update self to those values
+*/
+wsp.Taxon.prototype.save = function(vals) {
+  vals = vals || {};
   
+  //if tree doesn't have an id, want to add a new tree
+  var verb = (this.id === -1) ? "add" : "update";
+  var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
+                      data: {
+                        verb: verb, noun: "taxon",
+                        taxonid: this.id,
+                        genus: vals.genus,
+                        species: vals.species,
+                        common: vals.common,
+                        usdacode: vals.usdaCode,
+                        colorid: vals.colorId
+                      },
+                      dataType: "json",
+                      context: this})
+    .done(function(data) {
+      //update self to data
+      this.updateValues(data.taxon);
+      if (verb === "add") {
+        wspApp.map.taxa.addTaxon(this, {sort: true});
+      } else {
+        wspApp.map.symbolManager.updateSymbols(this);
+      }
+      
+      //TODO: need to update drop-down list of taxa
+      
+    });
+  return jqxhr;
+
+};
+
+/*this is filled with info from database.  just has one default for now*/
+wsp.TaxonColor = {
+  1: "ffffff"
 };
 
 /*
@@ -956,7 +1057,8 @@ wsp.UserPrivilege = {
   DELETE_TREE: 4,
   ADD_TAXON: 5,
   ADD_COMMENT: 6,
-  MODIFY_COMMENT: 7
+  MODIFY_COMMENT: 7,
+  UPDATE_TAXON: 8
 };
 
 
@@ -988,13 +1090,13 @@ wsp.LocationControl = function(map) {
       .attr("index", 1)
       .append(controlUI);
       
-    
+    var color = "purple";
     this.userSymbol = {
       path: google.maps.SymbolPath.CIRCLE,
       fillOpacity: .75,
-      fillColor: "blue",
+      fillColor: color,
       strokeOpacity: 1.0,
-      strokeColor: "blue",
+      strokeColor: color,
       strokeWeight: 1.0,
       scale: 5.0
     };
@@ -1008,11 +1110,11 @@ wsp.LocationControl = function(map) {
     this.accuracyCircle = new google.maps.Circle({
       //will set map and position once we know position
       clickable: false,
-      fillColor: "blue",
-      strokeColor: "blue",
+      fillColor: color,
+      strokeColor: color,
       strokeWeight: .5, //pixels
       strokeOpacity: 0.5,
-      fillOpacity: 0.09,
+      fillOpacity: 0.2,
       radius: 10 //meters - will be changed on updates
     });
     
@@ -1112,7 +1214,7 @@ wsp.LocationControl.prototype.setUserLocation = function (opts) {
 };
 
 wsp.LocationControl.prototype.onPositionUpdate = function (position) {
-  var s = "watch position: " + position.coords.latitude + "," + position.coords.longitude;
+  //var s = "watch position: " + position.coords.latitude + "," + position.coords.longitude;
   //console.log(s);
   
   this.isWatching = true;

@@ -5,7 +5,7 @@ password is a hash encoding.  it contains salt, hash type, and iteration count
 username must be unique
 postal_code is open ended (instead of being, say 5-digit zip) 
   to accomodate users from other countries.  not sure how it'll be used...
-
+can_email is a flag indicating whether user wants news/updates sent
 */
 
 create table if not exists users (
@@ -18,6 +18,7 @@ create table if not exists users (
   last_name varchar(40) null,
   postal_code varchar(32) null,
   is_verified bit(1) default 0,
+  can_email bit(1) default 0,
   
   primary key (user_id),
   constraint uq_users__username

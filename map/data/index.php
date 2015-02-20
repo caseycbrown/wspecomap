@@ -13,6 +13,7 @@ include_once "./php/tree.php";
 include_once "./php/taxon.php";
 include_once "./php/observation.php";
 include_once "./php/layer.php";
+include_once "./php/color.php";
 include_once "./php/privilege.php";
 include_once "./php/user.php";
 
@@ -56,6 +57,15 @@ try {
         //single call instead of two ajax requests when loading map
         $manager = new LayerManager();
         $jd = $manager->processRequest($dh);
+        if (!$jd->get("error")) {
+          $manager = new ColorManager();
+          $colorInfo = $manager->processRequest($dh);
+          if ($colorInfo->get("error")){
+            $jd->set("error", $colorInfo->get("error"));
+          } else {
+            $jd->set("colors", $colorInfo->get("colors"));
+          }
+        }
         if (!$jd->get("error")) {
           $manager = new TaxonManager();
           $taxonInfo = $manager->processRequest($dh);
