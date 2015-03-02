@@ -33,6 +33,13 @@
   padding-left: 9px;
 }
 
+/*presently only used on landing page*/
+h5 {
+  margin: 10px 0px;
+}
+
+
+
 /*the headings for */
 label.panel-descriptor {
   font-size: smaller;
@@ -113,6 +120,15 @@ label.panel-descriptor {
 
 .social-buttons a{
   text-decoration: none;
+}
+div.social-buttons {
+  position: absolute;
+  background-color: white;
+  opacity: 0.5;
+  
+  left: 50%;
+  bottom: 14px;
+  margin-left: -48px;
 }
 
 select.color option{

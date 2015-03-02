@@ -28,7 +28,6 @@
     
     <script type="text/javascript">
       var wspApp = new wsp.Application(); //global variable; will be instance of our app
-
       $(document).on("pagecontainercreate", function(event, ui) {
         wspApp.pageContainer = new wsp.PageContainer();
       });
@@ -37,43 +36,15 @@
   </head>
   <body>
   
-  <div id="fb-root"></div>
-   <div data-url="map-page" data-role="page" id="map-page" data-title="WSP">      
+    <div id="fb-root"></div>
+  
+    <div data-role="page" id="map-page" data-title="WSP">      
       
       <div data-role="header" data-position="fixed">
         <h1>WSP Eco Map</h1>
 
-        
-        <div class="social-buttons ui-btn-left" data-role="controlgroup" data-type="horizontal">
-
-            <a href="https://twitter.com/share?url=http://localecology.org/wspecomap&text=Explore Washington Square Park&hashtags=washingtonsquarepark,nycparks"
-              target="_blank">
-              <img src="images/twitter.png" />
-            </a>
-            
-            <a href="https://plus.google.com/share?url=http://localecology.org/wspecomap"
-              target="_blank">
-              <img src="images/googleplus.png" />
-            </a>
-
-            <a href="https://www.facebook.com/share.php?u=http://localecology.org/wspecomap"
-              target="_blank">
-              <img src="images/facebook.png" />
-            </a>
-
-          
-
-        </div>
-        
-        <!--
-        <div class="social-buttons ui-btn-left" data-role="controlgroup" data-type="horizontal">
-          <div class="fb-like" data-href="http://localecology.org/wspecomap"
-            data-layout="button" data-action="like" data-show-faces="true" data-share="true"></div>
-            
-            <a href="https://twitter.com/share" class="twitter-share-button" data-text="Explore Washingon Square Park" data-count="none" data-hashtags="coolmap">Tweet</a>
-          
-        </div>
-        -->
+        <a href="#landing-page" class="ui-btn-left" data-role="button"
+          data-inline="true" data-mini="true">Projects</a>
 
         <a href="#option-menu" class="ui-btn-right" data-rel="popup" data-role="button"
           data-inline="true" data-icon="bars" data-iconpos="left">Options</a>
@@ -95,12 +66,36 @@
 
       <div role="main" class="ui-content">
         <div id="map-canvas"></div>
+        
+        
+        <!--<div class="social-buttons ui-btn-left" data-role="controlgroup" data-type="horizontal">-->
+        <div class="social-buttons ui-corner-all">
+
+          <a href="https://twitter.com/share?url=http://wspecomap.org&text=Explore Washington Square Park&hashtags=washingtonsquarepark,nycparks"
+            target="_blank">
+            <img src="images/twitter.png" />
+          </a>
+          
+          <a href="https://plus.google.com/share?url=http://wspecomap.org"
+            target="_blank">
+            <img src="images/googleplus.png" />
+          </a>
+
+          <a href="https://www.facebook.com/share.php?u=http://wspecomap.org"
+            target="_blank">
+            <img src="images/facebook.png" />
+          </a>
+
+        </div>
+
+        
+        
       
       </div><!-- /content -->
       
       <div id="stock-elements-panel" data-role="panel" data-display="overlay">
         <!--this panel contains some elements that are added/removed dynamically
-          to other panels.  This panel itself is not actually opened on page.
+          to other places.  This panel itself is not actually opened on page.
           This is really more for convenience than anything
         -->
         
@@ -124,6 +119,8 @@
           <div class="date"></div>
           <div class="comments"></div>
         </div>
+        
+
         
       </div>
 
@@ -433,6 +430,15 @@
       </div>
     </div>
 
+    <div data-role="page" id="landing-page" data-title="WSP - Calendar/Projects">
+      <div data-role="header" data-position="fixed" data-add-back-btn="true">
+        <h1>WSP Eco Projects</h1>        
+      </div>
+      <div role="main" class="ui-content">
+        Loading...
+      </div>
+    </div>
+
     
     <div data-role="page" id="user-pw" data-title="Set Password" data-theme="b">
       <div data-role="header" data-position="fixed">
@@ -545,7 +551,6 @@
         
       </div>
     </div>
-
     
     
   </body>

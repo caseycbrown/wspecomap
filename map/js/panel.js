@@ -592,13 +592,11 @@ wsp.TaxonPanel.prototype.onBeforeOpen = function(event, ui) {
   
   var colorSel = this.domPanel.find("select.color");
   if (colorSel.find("option").length === 0) {
-    console.log("populating color selection");
     
     var s = "";
     var that = this;
     $.each(wsp.TaxonColor, function(colorId, hexColor){
       colorId = parseInt(colorId);
-      console.log("id: " + colorId + ": " + hexColor);
       s = "<option value='" + colorId + "'";
       s += (that.taxon.colorId === colorId) ? " selected" : "";
       s += " style='background-color:#" + hexColor + ";'";
@@ -634,7 +632,6 @@ wsp.TaxonPanel.prototype.onClose = function() {
 */
 wsp.TaxonPanel.prototype.onSubmitClick = function() {
   //what to do depends on whether we are adding or updating
-  console.log("taxon id is " + this.taxon.id);
   
   var opts = {};
   opts.genus = this.domPanel.find(".genus").val(); 
@@ -865,7 +862,7 @@ wsp.PageContainer = function() {
   this.pages["map-page"] = new wsp.MapPage("map-page");
   this.pages["user-pw"] = new wsp.PasswordPage("user-pw");
   this.pages["user-profile"] = new wsp.ProfilePage("user-profile");
-  
+  this.pages["landing-page"] = new wsp.LandingPage("landing-page");
 
   var d = $(document);
   d.on("pagecontainerbeforehide", $.proxy(this.onBeforeHide, this));
@@ -882,7 +879,6 @@ wsp.PageContainer.prototype.onBeforeHide = function(event, ui) {
 /*Page is a class that encapsulates page functionality*/
 wsp.Page = function (name) {
   name = "#" + name;
-  
   this.dom = $(name); //returns jquery object
     
   $(document)
@@ -983,6 +979,14 @@ wsp.MapPage.prototype.onCreate = function(event) {
   }, 6500);
   */
 };
+
+/*called by page container before showing this page*/
+wsp.MapPage.prototype.onBeforeShow = function(event, ui) {
+  //event.preventDefault();
+  this.setError(null);
+};
+
+
 
 /*inherits from Page and is used to show page where user can reset password*/
 wsp.PasswordPage = function(name) {
@@ -1148,7 +1152,6 @@ wsp.AdminPage.prototype = Object.create(wsp.Page.prototype); //inherit from page
 wsp.AdminPage.prototype.constructor = wsp.AdminPage;
 
 wsp.AdminPage.prototype.onCreate = function(event, ui) {
-  console.log("admin page create");
   $.ajax({url: wspApp.Constants.DATA_URL,
           data: {verb: "get", noun: "privilege"},
                 dataType: "json",
@@ -1282,3 +1285,37 @@ wsp.AdminPage.prototype.onSubmitClick = function(event) {
   }
 };
 
+/*inherits from Page and is landing page where users first arrive*/
+wsp.LandingPage = function(name) {
+  wsp.Page.call(this, name);
+};
+
+wsp.LandingPage.prototype = Object.create(wsp.Page.prototype); //inherit from page
+//set "constructor" property as per mozilla developer docs
+wsp.LandingPage.prototype.constructor = wsp.LandingPage;
+
+wsp.LandingPage.prototype.onSubmitClick = function(event) {
+  wspApp.pageContainer.pc.pagecontainer("change", "#");
+};
+
+/*
+  Called when page has been created - override in subclass
+*/
+wsp.LandingPage.prototype.onBeforeCreate = function(event) {
+
+  $.ajax({url: "landing.html",
+          dataType: "html",
+          context: this})
+  .done(function(data){
+    
+    this.dom.find(".ui-content").html(data);
+    //button wasn't wired when page loaded because it didn't exist
+    this.dom.find("button.submit").click($.proxy(this.onSubmitClick, this));
+    
+  })
+  .fail(function(){
+    this.dom.find(".ui-content").text("Error loading page");
+  });
+
+
+};

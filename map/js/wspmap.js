@@ -1756,7 +1756,7 @@ wsp.MinettaOverlay.prototype.setVisibility = function (isVisible) {
     
     
     this.walkingTour = new google.maps.KmlLayer({
-      url: "http://localecology.org/wspecomap/kml/minetta_tour.kml",
+      url: "http://wspecomap.org/kml/minetta_tour.kml",
       preserveViewport: true
     });
     
