@@ -173,7 +173,7 @@ wsp.Map = function (baseMap) {
   
   this.vieleOverlay = new google.maps.GroundOverlay("images/viele-overlay.png", b, {
       map: that.baseMap,
-      opacity: 1
+      opacity: 0.5
   });
 
   b = new google.maps.LatLngBounds(new google.maps.LatLng(40.729582, -73.999625),
@@ -181,7 +181,7 @@ wsp.Map = function (baseMap) {
   
   this.historicParkOverlay = new google.maps.GroundOverlay("images/historic-wsp.png", b, {
       map: that.baseMap,
-      opacity: 1
+      opacity: 0.4
   });
 
   //settings panel needs to know when layers have arrived from server
@@ -270,7 +270,7 @@ wsp.Map = function (baseMap) {
   /*called to get trees, taxon, and layer info to start*/
   this.requestInitialData = function () {
     var jqxhr = $.ajax({url: wspApp.Constants.DATA_URL,
-                        data: {verb: "get", noun: "initial-data", dbhmin: 13},
+                        data: {verb: "get", noun: "initial-data", dbhmin: 0},
                         dataType: "json",
                         context: this})    
         .done(function(data){
